@@ -58,55 +58,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const lsystem = new LSystem(selectedFractal.axiom, selectedFractal.rules);
         const instructions = lsystem.generate(parseInt(iterationsInput.value));
         
-        // Clear canvas and set up for drawing
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Calculate appropriate starting position and scale
-        const size = parseInt(sizeInput.value);
-        const scale = Math.min(canvas.width, canvas.height) / (Math.pow(2, parseInt(iterationsInput.value)) * size);
-        
-        // Set initial position to center of canvas
-        ctx.save();
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.scale(scale, scale);
+        // Store parameters for redrawing
+        renderer.setLastParams(instructions, selectedFractal.angle, parseInt(sizeInput.value));
         
         // Draw the fractal
-        let x = 0, y = 0;
-        let angle = selectedFractal.initialAngle;
-        const stack = [];
-
-        for (const instruction of instructions) {
-            switch (instruction) {
-                case 'F':
-                    const newX = x + Math.cos(angle * Math.PI / 180) * size;
-                    const newY = y + Math.sin(angle * Math.PI / 180) * size;
-                    ctx.beginPath();
-                    ctx.moveTo(x, y);
-                    ctx.lineTo(newX, newY);
-                    ctx.stroke();
-                    x = newX;
-                    y = newY;
-                    break;
-                case '+':
-                    angle += selectedFractal.angle;
-                    break;
-                case '-':
-                    angle -= selectedFractal.angle;
-                    break;
-                case '[':
-                    stack.push({ x, y, angle });
-                    break;
-                case ']':
-                    const state = stack.pop();
-                    x = state.x;
-                    y = state.y;
-                    angle = state.angle;
-                    break;
-            }
-        }
-        
-        ctx.restore();
+        renderer.drawTree(instructions, selectedFractal.angle, parseInt(sizeInput.value));
     }
 
     // Event listeners

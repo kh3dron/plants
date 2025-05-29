@@ -38,6 +38,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function generateTree() {
         const lsystem = new LSystem(axiomInput.value, rulesInput.value);
         const instructions = lsystem.generate(parseInt(iterationsInput.value));
+        
+        // Store parameters for redrawing
+        renderer.setLastParams(instructions, parseInt(angleInput.value), parseInt(lengthInput.value));
+        
+        // Draw the tree
         renderer.drawTree(instructions, parseInt(angleInput.value), parseInt(lengthInput.value));
     }
 
