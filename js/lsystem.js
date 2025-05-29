@@ -1,32 +1,49 @@
 class LSystem {
-    constructor(axiom, rules) {
+    constructor(axiom, rules, rng) {
         this.axiom = axiom;
-        this.rules = this.parseRules(rules);
+        // rules: array of {symbol, replacement, probability}
+        this.rules = this.groupRulesBySymbol(rules);
+        this.rng = rng || Math.random;
     }
 
-    parseRules(rulesString) {
-        const rules = {};
-        const rulePairs = rulesString.split('\n').filter(rule => rule.trim());
-        
-        rulePairs.forEach(rule => {
-            const [key, value] = rule.split('=').map(s => s.trim());
-            rules[key] = value;
+    // Group rules by symbol for easy lookup
+    groupRulesBySymbol(rulesArray) {
+        const grouped = {};
+        rulesArray.forEach(rule => {
+            if (!grouped[rule.symbol]) grouped[rule.symbol] = [];
+            grouped[rule.symbol].push({
+                replacement: rule.replacement,
+                probability: rule.probability
+            });
         });
-        
-        return rules;
+        return grouped;
+    }
+
+    // Select a replacement based on probabilities
+    selectReplacement(rulesForSymbol) {
+        const r = this.rng();
+        let acc = 0;
+        for (let rule of rulesForSymbol) {
+            acc += rule.probability;
+            if (r <= acc) return rule.replacement;
+        }
+        // fallback: last rule
+        return rulesForSymbol[rulesForSymbol.length - 1].replacement;
     }
 
     generate(iterations) {
         let result = this.axiom;
-        
         for (let i = 0; i < iterations; i++) {
             let newResult = '';
             for (let char of result) {
-                newResult += this.rules[char] || char;
+                if (this.rules[char]) {
+                    newResult += this.selectReplacement(this.rules[char]);
+                } else {
+                    newResult += char;
+                }
             }
             result = newResult;
         }
-        
         return result;
     }
 } 
