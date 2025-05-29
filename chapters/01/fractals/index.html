@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractals - L-System Generator</title>
+    <link rel="stylesheet" href="../../../css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="hamburger-menu">
+        <i class="fas fa-bars"></i>
+    </div>
+
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h2>Chapters</h2>
+            <button class="close-sidebar"><i class="fas fa-times"></i></button>
+        </div>
+        <ul class="chapter-list">
+            <li><a href="../axial_trees/">Axial Trees</a></li>
+            <li><a href="../fractals/" class="active">Fractals</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <header>
+            <h1>Fractal Generator</h1>
+            <p>Generate classic fractal patterns using L-systems</p>
+        </header>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="fractal-type">Fractal Type:</label>
+                <select id="fractal-type">
+                    <option value="hilbert">Hilbert Curve</option>
+                    <option value="koch">Koch Island</option>
+                    <option value="snowflake">Snowflake Curve</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="iterations">Iterations:</label>
+                <input type="range" id="iterations" min="1" max="8" value="4">
+                <span id="iterations-value">4</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="size">Size:</label>
+                <input type="range" id="size" min="1" max="20" value="10">
+                <span id="size-value">10</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="axiom">Axiom:</label>
+                <input type="text" id="axiom" value="F" readonly>
+            </div>
+            
+            <div class="control-group">
+                <label for="rules">Rules:</label>
+                <textarea id="rules" readonly></textarea>
+            </div>
+            
+            <button id="generate">Generate Fractal</button>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="fractalCanvas"></canvas>
+        </div>
+    </div>
+    <script src="../../../js/lsystem.js"></script>
+    <script src="../../../js/renderer.js"></script>
+    <script src="script.js"></script>
+    <script src="../../../js/navigation.js"></script>
+</body>
+</html>

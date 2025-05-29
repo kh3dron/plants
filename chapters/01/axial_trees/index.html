@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binary Trees - L-System Generator</title>
+    <link rel="stylesheet" href="../../../css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="hamburger-menu">
+        <i class="fas fa-bars"></i>
+    </div>
+
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h2>Chapters</h2>
+            <button class="close-sidebar"><i class="fas fa-times"></i></button>
+        </div>
+        <ul class="chapter-list">
+            <li><a href="../binary-trees/" class="active">Binary Trees</a></li>
+            <li><a href="../bush-patterns/">Bush Patterns</a></li>
+            <li><a href="../fern-patterns/">Fern Patterns</a></li>
+            <li><a href="../stochastic-trees/">Stochastic Trees</a></li>
+            <li><a href="../parametric-lsystems/">Parametric L-Systems</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <header>
+            <h1>Binary Tree Generator</h1>
+            <p>Generate classic binary tree patterns using L-systems</p>
+        </header>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="iterations">Iterations:</label>
+                <input type="range" id="iterations" min="1" max="10" value="5">
+                <span id="iterations-value">5</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="angle">Branch Angle:</label>
+                <input type="range" id="angle" min="0" max="90" value="45">
+                <span id="angle-value">45°</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="length">Branch Length:</label>
+                <input type="range" id="length" min="1" max="20" value="10">
+                <span id="length-value">10</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="axiom">Axiom:</label>
+                <input type="text" id="axiom" value="F">
+            </div>
+            
+            <div class="control-group">
+                <label for="rules">Rules:</label>
+                <textarea id="rules">F=FF+[+F-F-F]-[-F+F+F]</textarea>
+            </div>
+            
+            <button id="generate">Generate Tree</button>
+            <button id="randomize">Randomize</button>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="treeCanvas"></canvas>
+        </div>
+    </div>
+    <script src="../../../js/lsystem.js"></script>
+    <script src="../../../js/renderer.js"></script>
+    <script src="script.js"></script>
+    <script src="../../../js/navigation.js"></script>
+</body>
+</html> 
