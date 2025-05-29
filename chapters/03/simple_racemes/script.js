@@ -46,8 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 { name: "Flower", variable: "K", shape: "circle", color: "#FFCC00" }
             ],
             rules: [
-                { a: "I[L]a", probability: 0.7 },
-                { a: "I[L]A", probability: 0.3 },
+                { a: "I[L]a", probability: 0.9 },
+                { a: "I[L]A", probability: 0.1 },
                 { A: "I[K]A", probability: 1 }
             ]
         }

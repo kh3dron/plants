@@ -23,25 +23,25 @@ document.addEventListener('DOMContentLoaded', () => {
         {
             name: "A",
             angle: 25.7,
-            axiom: "f",
+            axiom: "F",
             rules: [
-                { symbol: "f", replacement: "f[+f]f[-f]f", probability: 1 }
+                { symbol: "F", replacement: "F[+F]F[-F]F", probability: 1 }
             ]
         },
         {
             name: "B",
             angle: 20,
-            axiom: "f",
+            axiom: "F",
             rules: [
-                { symbol: "f", replacement: "f[+f]f[-f][f]", probability: 1 }
+                { symbol: "F", replacement: "F[+F]F[-F][F]", probability: 1 }
             ]
         },
         {
             name: "C",
             angle: 22.5,
-            axiom: "f",
+            axiom: "F",
             rules: [
-                { symbol: "f", replacement: "FF-[-F+F+F]+[+F-F-F]", probability: 1 }
+                { symbol: "F", replacement: "FF-[-F+F+F]+[+F-F-F]", probability: 1 }
             ]
         },
         {
