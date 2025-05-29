@@ -72,4 +72,4 @@
 
 ## 4: Phyllotaxis
 
-- regular arrangement of lateral organs, think sunflowers
+- **Phyllotaxis**: regular arrangement of lateral organs: sunflowers, pineapple bark (?), leaves around a stem
