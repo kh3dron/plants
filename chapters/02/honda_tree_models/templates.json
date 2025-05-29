@@ -1,0 +1,87 @@
+[
+  {
+    "name": "Honda Tree Model",
+    "angle": 45,
+    "axiom": "A(1,1)",
+    "parameters": {
+      "r1": 0.9,
+      "r2": 0.6,
+      "a0": 45,
+      "a2": 45,
+      "d": 137.5,
+      "w": 0.707
+    },
+    "rules": [
+      {
+        "predecessor": "A(l,w)",
+        "successor": "!(w)F(1)[&(a0)B(l*r2,w*w)]/(d)A(l*r1,w*w)",
+        "probability": 1
+      },
+      {
+        "predecessor": "B(l,w)",
+        "successor": "!(w)F(1)[-(a2)C(l*r2,w*w)]C(l*r1,w*w)",
+        "probability": 1
+      },
+      {
+        "predecessor": "C(l,w)",
+        "successor": "!(w)F(1)[+(a2)B(l*r2,w*w)]B(l*r1,w*w)",
+        "probability": 1
+      }
+    ]
+  }
+  ,
+  {
+    "name": "Aono & Kunii Sympodial Tree",
+    "angle": 60,
+    "axiom": "A(1,10)",
+    "parameters": {
+      "r1": 0.9,
+      "r2": 0.7,
+      "a1": 10,
+      "a2": 60,
+      "wr": 0.707
+    },
+    "rules": [
+      {
+        "predecessor": "A(l,w)",
+        "successor": "!(w)F(1)[&(a1)B(l*r1,w*wr)]/(180)[&(a2)B(l*r2,w*wr)]",
+        "probability": 1
+      },
+      {
+        "predecessor": "B(l,w)",
+        "successor": "!(w)F(1)[+(a1)B(l*r1,w*wr)][-(a2)B(l*r2,w*wr)]",
+        "probability": 1
+      }
+    ]
+  }
+  ,
+  {
+    "name": "Ternary Branching Tree",
+    "angle": 18.95,
+    "axiom": "!(1)F(200)/(45)A",
+    "parameters": {
+      "d1": 94.74,
+      "d2": 132.63,
+      "a": 18.95,
+      "l1": 1.109,
+      "vr": 1.732
+    },
+    "rules": [
+      {
+        "predecessor": "A",
+        "successor": "!(vr)F(50)[&(a)F(50)A]/(d1)[&(a)F(50)A]/(d2)[&(a)F(50)A]",
+        "probability": 1
+      },
+      {
+        "predecessor": "F(1)",
+        "successor": "F(1*l1)",
+        "probability": 1
+      },
+      {
+        "predecessor": "!(w)",
+        "successor": "!(w*vr)",
+        "probability": 1
+      }
+    ]
+  }
+]
