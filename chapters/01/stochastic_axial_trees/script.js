@@ -7,8 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const iterationsValue = document.getElementById('iterations-value');
     const angleInput = document.getElementById('angle');
     const angleValue = document.getElementById('angle-value');
-    const lengthInput = document.getElementById('length');
-    const lengthValue = document.getElementById('length-value');
+    // Branch length controls removed
     const axiomInput = document.getElementById('axiom');
     const seedInput = document.getElementById('seed');
     const rulesTable = document.getElementById('rules-table');
@@ -81,10 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
         generateTree();
     });
 
-    lengthInput.addEventListener('input', () => {
-        lengthValue.textContent = lengthInput.value;
-        generateTree();
-    });
+    // Branch length controls removed
 
     axiomInput.addEventListener('input', generateTree);
     seedInput.addEventListener('input', generateTree);
@@ -97,19 +93,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const rng = mulberry32(seed);
         const lsystem = new LSystem(axiomInput.value, rules, rng);
         const instructions = lsystem.generate(parseInt(iterationsInput.value));
-        renderer.setLastParams(instructions, parseInt(angleInput.value), parseInt(lengthInput.value));
-        renderer.drawTree(instructions, parseInt(angleInput.value), parseInt(lengthInput.value));
+        const fixedLength = 10; // Set a fixed branch length
+        renderer.setLastParams(instructions, parseInt(angleInput.value), fixedLength);
+        renderer.drawTree(instructions, parseInt(angleInput.value), fixedLength);
     }
 
     // Randomize function
     function randomize() {
         const randomAngle = Math.floor(Math.random() * 45) + 15; // 15-60 degrees
-        const randomLength = Math.floor(Math.random() * 15) + 5; // 5-20 pixels
         const randomIterations = Math.floor(Math.random() * 5) + 3; // 3-8 iterations
         angleInput.value = randomAngle;
         angleValue.textContent = `${randomAngle}°`;
-        lengthInput.value = randomLength;
-        lengthValue.textContent = randomLength;
         iterationsInput.value = randomIterations;
         iterationsValue.textContent = randomIterations;
         generateTree();
