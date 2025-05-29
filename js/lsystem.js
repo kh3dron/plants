@@ -8,6 +8,9 @@ class LSystem {
 
     // Group rules by symbol for easy lookup
     groupRulesBySymbol(rulesArray) {
+        if (!Array.isArray(rulesArray)) {
+            throw new TypeError("rules must be an array");
+        }
         const grouped = {};
         rulesArray.forEach(rule => {
             if (!grouped[rule.symbol]) grouped[rule.symbol] = [];

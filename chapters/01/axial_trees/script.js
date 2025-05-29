@@ -35,8 +35,26 @@ document.addEventListener('DOMContentLoaded', () => {
     rulesInput.addEventListener('input', generateTree);
 
     // Generate tree function
+    function parseRulesToStochastic(rulesString) {
+        // Parse rules from textarea (e.g. F=FF+[+F-F-F]-[-F+F+F])
+        // Returns array: [{symbol: 'F', replacement: '...', probability: 1}]
+        return rulesString
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .map(line => {
+                const [symbol, replacement] = line.split('=');
+                return {
+                    symbol: symbol.trim(),
+                    replacement: replacement.trim(),
+                    probability: 1
+                };
+            });
+    }
+
     function generateTree() {
-        const lsystem = new LSystem(axiomInput.value, rulesInput.value);
+        const rulesArray = parseRulesToStochastic(rulesInput.value);
+        const lsystem = new LSystem(axiomInput.value, rulesArray);
         const instructions = lsystem.generate(parseInt(iterationsInput.value));
         
         // Store parameters for redrawing

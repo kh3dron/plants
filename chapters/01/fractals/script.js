@@ -52,10 +52,27 @@ document.addEventListener('DOMContentLoaded', () => {
         generateFractal();
     });
 
+    // Parse rules string to stochastic array (probability 1 for each)
+    function parseRulesToStochastic(rulesString) {
+        return rulesString
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .map(line => {
+                const [symbol, replacement] = line.split('=');
+                return {
+                    symbol: symbol.trim(),
+                    replacement: replacement.trim(),
+                    probability: 1
+                };
+            });
+    }
+
     // Generate fractal function
     function generateFractal() {
         const selectedFractal = fractalDefinitions[fractalTypeSelect.value];
-        const lsystem = new LSystem(selectedFractal.axiom, selectedFractal.rules);
+        const rulesArray = parseRulesToStochastic(selectedFractal.rules);
+        const lsystem = new LSystem(selectedFractal.axiom, rulesArray);
         const instructions = lsystem.generate(parseInt(iterationsInput.value));
         
         // Store parameters for redrawing
