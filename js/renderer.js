@@ -127,30 +127,28 @@ class TreeRenderer {
     // Drawing methods
     drawTree(instructions, angle, length) {
         this.clear();
-        
+
+        // --- 1. Simulate to get bounding box ---
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        let x = 0, y = 0, currentAngle = -90;
         const stack = [];
-        let x = this.canvas.width / 2;
-        let y = this.canvas.height;
-        let currentAngle = -90; // Start pointing up
-        
-        this.ctx.save();
-        this.ctx.translate(this.offsetX, this.offsetY);
-        this.ctx.scale(this.scale, this.scale);
-        
-        this.ctx.beginPath();
-        this.ctx.strokeStyle = '#2c3e50';
-        this.ctx.lineWidth = 2 / this.scale; // Adjust line width based on scale
-        
+        function updateBounds(x, y) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+        }
+        updateBounds(x, y);
         for (let char of instructions) {
             switch (char) {
-                case 'F':
+                case 'F': {
                     const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
                     const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
-                    this.ctx.moveTo(x, y);
-                    this.ctx.lineTo(newX, newY);
+                    updateBounds(newX, newY);
                     x = newX;
                     y = newY;
                     break;
+                }
                 case '+':
                     currentAngle += angle;
                     break;
@@ -160,15 +158,75 @@ class TreeRenderer {
                 case '[':
                     stack.push({ x, y, angle: currentAngle });
                     break;
-                case ']':
+                case ']': {
                     const state = stack.pop();
                     x = state.x;
                     y = state.y;
                     currentAngle = state.angle;
                     break;
+                }
             }
         }
-        
+
+        // --- 2. Compute scale and offset to fit bounding box in canvas ---
+        const bboxWidth = maxX - minX;
+        const bboxHeight = maxY - minY;
+        const padding = 20; // px
+        const canvasWidth = this.canvas.width;
+        const canvasHeight = this.canvas.height;
+        const scaleX = (canvasWidth - padding * 2) / bboxWidth;
+        const scaleY = (canvasHeight - padding * 2) / bboxHeight;
+        const fitScale = Math.min(scaleX, scaleY);
+
+        // Centering offset
+        const offsetX = (canvasWidth - bboxWidth * fitScale) / 2 - minX * fitScale;
+        const offsetY = (canvasHeight - bboxHeight * fitScale) / 2 - minY * fitScale;
+
+        // --- 3. Draw with transform ---
+        x = 0;
+        y = 0;
+        currentAngle = -90;
+        stack.length = 0;
+
+        this.ctx.save();
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+        this.ctx.translate(offsetX, offsetY);
+        this.ctx.scale(fitScale, fitScale);
+
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = '#2c3e50';
+        this.ctx.lineWidth = 2 / fitScale;
+
+        for (let char of instructions) {
+            switch (char) {
+                case 'F': {
+                    const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
+                    const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
+                    this.ctx.moveTo(x, y);
+                    this.ctx.lineTo(newX, newY);
+                    x = newX;
+                    y = newY;
+                    break;
+                }
+                case '+':
+                    currentAngle += angle;
+                    break;
+                case '-':
+                    currentAngle -= angle;
+                    break;
+                case '[':
+                    stack.push({ x, y, angle: currentAngle });
+                    break;
+                case ']': {
+                    const state = stack.pop();
+                    x = state.x;
+                    y = state.y;
+                    currentAngle = state.angle;
+                    break;
+                }
+            }
+        }
+
         this.ctx.stroke();
         this.ctx.restore();
     }
