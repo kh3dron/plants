@@ -15,6 +15,94 @@ document.addEventListener('DOMContentLoaded', () => {
     const generateButton = document.getElementById('generate');
     const randomizeButton = document.getElementById('randomize');
 
+    // Template buttons
+    const templateButtons = document.querySelectorAll('.template-btn');
+
+    // Templates (inlined from templates.json)
+    const templates = [
+        {
+            name: "A",
+            angle: 25.7,
+            axiom: "f",
+            rules: [
+                { symbol: "f", replacement: "f[+f]f[-f]f", probability: 1 }
+            ]
+        },
+        {
+            name: "B",
+            angle: 20,
+            axiom: "f",
+            rules: [
+                { symbol: "f", replacement: "f[+f]f[-f][f]", probability: 1 }
+            ]
+        },
+        {
+            name: "C",
+            angle: 22.5,
+            axiom: "f",
+            rules: [
+                { symbol: "f", replacement: "FF-[-F+F+F]+[+F-F-F]", probability: 1 }
+            ]
+        },
+        {
+            name: "D",
+            angle: 20,
+            axiom: "X",
+            rules: [
+                { symbol: "X", replacement: "F[+X]F[-X]+X", probability: 1 },
+                { symbol: "F", replacement: "FF", probability: 1 }
+            ]
+        },
+        {
+            name: "E",
+            angle: 25.7,
+            axiom: "X",
+            rules: [
+                { symbol: "X", replacement: "F[+X][-X]FX", probability: 1 },
+                { symbol: "F", replacement: "FF", probability: 1 }
+            ]
+        },
+        {
+            name: "F",
+            angle: 22.5,
+            axiom: "X",
+            rules: [
+                { symbol: "X", replacement: "F-[[X]+X]+F[+FX]-X", probability: 1 },
+                { symbol: "F", replacement: "FF", probability: 1 }
+            ]
+        }
+    ];
+
+    // Load template into UI
+    function loadTemplate(idx) {
+        const t = templates[idx];
+        if (!t) return;
+        angleInput.value = t.angle;
+        angleValue.textContent = `${t.angle}°`;
+        axiomInput.value = t.axiom;
+        // Clear rules table
+        const tbody = rulesTable.querySelector('tbody');
+        tbody.innerHTML = '';
+        t.rules.forEach(rule => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><input type="text" class="rule-symbol" value="${rule.symbol}" maxlength="1" style="width:2em;"></td>
+                <td><input type="text" class="rule-replacement" value="${rule.replacement}"></td>
+                <td><input type="number" class="rule-probability" value="${rule.probability}" min="0" max="1" step="0.01" style="width:4em;"></td>
+                <td><button type="button" class="remove-rule">&minus;</button></td>
+            `;
+            tbody.appendChild(row);
+        });
+        generateTree();
+    }
+
+    templateButtons.forEach(btn => {
+        btn.addEventListener('click', e => {
+            const idx = parseInt(btn.getAttribute('data-template'));
+            loadTemplate(idx);
+        });
+    });
+
     // Simple seeded RNG (mulberry32)
     function mulberry32(seed) {
         let t = seed;

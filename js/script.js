@@ -40,8 +40,22 @@ class TreeRenderer {
     }
 
     resizeCanvas() {
-        this.canvas.width = this.canvas.offsetWidth;
-        this.canvas.height = this.canvas.offsetHeight;
+        // Get the controls panel width (if present)
+        const controls = document.querySelector('.controls');
+        let leftOffset = 0;
+        if (controls) {
+            const rect = controls.getBoundingClientRect();
+            leftOffset = rect.right;
+        }
+        // Set canvas size to fill the visible area (not under controls)
+        const container = this.canvas.parentElement;
+        const width = window.innerWidth - leftOffset;
+        const height = window.innerHeight - 4 * 16; // 4rem header
+        this.canvas.width = width > 0 ? width : 0;
+        this.canvas.height = height > 0 ? height : 0;
+        this.canvas.style.width = width + 'px';
+        this.canvas.style.height = height + 'px';
+        this.canvas.style.left = leftOffset + 'px';
     }
 
     clear() {
