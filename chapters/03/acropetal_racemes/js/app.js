@@ -87,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
       rules: [
         { a: "I[+IL][-IL]a", probability: 0.9 },
         { a: "A(1)", probability: 0.1 },
-        { A: "I[+IK(${0})][-IK(${0})]A(${0} * 0.9)", probability: 1 },
+        { A: "I(${0})[+I(${0})K(${0})][-I(${0})K(${0})]A(${0} * 0.9)", probability: 1 },
       ],
     },
   ];

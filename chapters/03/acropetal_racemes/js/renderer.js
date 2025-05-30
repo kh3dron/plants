@@ -1,9 +1,9 @@
 class TreeRenderer {
     constructor(canvas) {
         this.canvas = canvas;
-        this.ctx = canvas.getContext('2d');
+        this.ctx = canvas.getContext("2d");
         this.resizeCanvas();
-        window.addEventListener('resize', () => this.resizeCanvas());
+        window.addEventListener("resize", () => this.resizeCanvas());
 
         // Pan and zoom state
         this.scale = 1;
@@ -14,19 +14,28 @@ class TreeRenderer {
         this.lastY = 0;
 
         // Mouse event listeners
-        this.canvas.addEventListener('mousedown', this.startDrag.bind(this));
-        this.canvas.addEventListener('mousemove', this.drag.bind(this));
-        this.canvas.addEventListener('mouseup', this.endDrag.bind(this));
-        this.canvas.addEventListener('mouseleave', this.endDrag.bind(this));
-        this.canvas.addEventListener('wheel', this.handleZoom.bind(this));
+        this.canvas.addEventListener("mousedown", this.startDrag.bind(this));
+        this.canvas.addEventListener("mousemove", this.drag.bind(this));
+        this.canvas.addEventListener("mouseup", this.endDrag.bind(this));
+        this.canvas.addEventListener("mouseleave", this.endDrag.bind(this));
+        this.canvas.addEventListener("wheel", this.handleZoom.bind(this));
 
         // Touch event listeners
-        this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this));
-        this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
-        this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this));
+        this.canvas.addEventListener(
+            "touchstart",
+            this.handleTouchStart.bind(this),
+        );
+        this.canvas.addEventListener(
+            "touchmove",
+            this.handleTouchMove.bind(this),
+        );
+        this.canvas.addEventListener(
+            "touchend",
+            this.handleTouchEnd.bind(this),
+        );
 
         // Double tap to reset
-        this.canvas.addEventListener('dblclick', this.resetView.bind(this));
+        this.canvas.addEventListener("dblclick", this.resetView.bind(this));
     }
 
     resizeCanvas() {
@@ -43,49 +52,49 @@ class TreeRenderer {
         this.isDragging = true;
         this.lastX = e.clientX;
         this.lastY = e.clientY;
-        this.canvas.style.cursor = 'grabbing';
+        this.canvas.style.cursor = "grabbing";
     }
 
     drag(e) {
         if (!this.isDragging) return;
-        
+
         const deltaX = e.clientX - this.lastX;
         const deltaY = e.clientY - this.lastY;
-        
+
         this.offsetX += deltaX;
         this.offsetY += deltaY;
-        
+
         this.lastX = e.clientX;
         this.lastY = e.clientY;
-        
+
         this.redraw();
     }
 
     endDrag() {
         this.isDragging = false;
-        this.canvas.style.cursor = 'grab';
+        this.canvas.style.cursor = "grab";
     }
 
     handleZoom(e) {
         e.preventDefault();
         const delta = e.deltaY;
         const zoomFactor = delta > 0 ? 0.9 : 1.1;
-        
+
         // Get mouse position relative to canvas
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
-        
+
         // Calculate new scale and offset
         const newScale = this.scale * zoomFactor;
-        
+
         // Limit zoom level
         if (newScale < 0.1 || newScale > 10) return;
-        
+
         // Adjust offset to zoom towards mouse position
         this.offsetX = mouseX - (mouseX - this.offsetX) * zoomFactor;
         this.offsetY = mouseY - (mouseY - this.offsetY) * zoomFactor;
-        
+
         this.scale = newScale;
         this.redraw();
     }
@@ -100,16 +109,16 @@ class TreeRenderer {
 
     handleTouchMove(e) {
         if (!this.isDragging || e.touches.length !== 1) return;
-        
+
         const deltaX = e.touches[0].clientX - this.lastX;
         const deltaY = e.touches[0].clientY - this.lastY;
-        
+
         this.offsetX += deltaX;
         this.offsetY += deltaY;
-        
+
         this.lastX = e.touches[0].clientX;
         this.lastY = e.touches[0].clientY;
-        
+
         this.redraw();
     }
 
@@ -130,7 +139,7 @@ class TreeRenderer {
         if (match) {
             return {
                 symbol: match[1],
-                params: match[2].split(',').map(p => parseFloat(p.trim()))
+                params: match[2].split(",").map((p) => parseFloat(p.trim())),
             };
         }
         return { symbol, params: [] };
@@ -138,15 +147,18 @@ class TreeRenderer {
 
     // Drawing methods
     drawTree(instructions, angle, length) {
-        console.log('Plant string:', instructions);
+        console.log("Plant string:", instructions);
         this.clear();
 
         // Store the angle for use in drawing
         this.currentAngle = angle;
 
         // --- 1. Simulate to get bounding box ---
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        let x = 0, y = 0, currentAngle = -90;  // Start pointing upward
+        let minX = Infinity,
+            minY = Infinity,
+            maxX = -Infinity,
+            maxY = -Infinity;
+        let x = 0, y = 0, currentAngle = -90; // Start pointing upward
         const stack = [];
         function updateBounds(x, y) {
             if (x < minX) minX = x;
@@ -155,20 +167,53 @@ class TreeRenderer {
             if (y > maxY) maxY = y;
         }
         updateBounds(x, y);
-        
+
         let currentPos = 0;
         while (currentPos < instructions.length) {
             const char = instructions[currentPos];
-            if (char === 'K' && currentPos + 1 < instructions.length && instructions[currentPos + 1] === '(') {
+            if (
+                char === "K" && currentPos + 1 < instructions.length &&
+                instructions[currentPos + 1] === "("
+            ) {
                 // Handle parameterized flower
-                const endPos = instructions.indexOf(')', currentPos);
+                const endPos = instructions.indexOf(")", currentPos);
                 if (endPos !== -1) {
-                    const fullSymbol = instructions.substring(currentPos, endPos + 1);
+                    const fullSymbol = instructions.substring(
+                        currentPos,
+                        endPos + 1,
+                    );
                     const { params } = this.parseParameters(fullSymbol);
                     const size = params[0] || 1.0; // Default to 1.0 if no parameter
-                    
-                    const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
-                    const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
+
+                    const newX = x +
+                        Math.cos(currentAngle * Math.PI / 180) * length;
+                    const newY = y +
+                        Math.sin(currentAngle * Math.PI / 180) * length;
+                    updateBounds(newX, newY);
+                    x = newX;
+                    y = newY;
+                    currentPos = endPos + 1;
+                } else {
+                    currentPos++;
+                }
+            } else if (
+                char === "I" && currentPos + 1 < instructions.length &&
+                instructions[currentPos + 1] === "("
+            ) {
+                // Handle parameterized I
+                const endPos = instructions.indexOf(")", currentPos);
+                if (endPos !== -1) {
+                    const fullSymbol = instructions.substring(
+                        currentPos,
+                        endPos + 1,
+                    );
+                    const { params } = this.parseParameters(fullSymbol);
+                    const size = params[0] || 1.0; // Default to 1.0 if no parameter
+
+                    const newX = x +
+                        Math.cos(currentAngle * Math.PI / 180) * length * size;
+                    const newY = y +
+                        Math.sin(currentAngle * Math.PI / 180) * length * size;
                     updateBounds(newX, newY);
                     x = newX;
                     y = newY;
@@ -178,28 +223,30 @@ class TreeRenderer {
                 }
             } else {
                 switch (char) {
-                    case 'F':
-                    case 'a':
-                    case 'A':
-                    case 'I':
-                    case 'L': {
-                        const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
-                        const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
+                    case "F":
+                    case "a":
+                    case "A":
+                    case "I":
+                    case "L": {
+                        const newX = x +
+                            Math.cos(currentAngle * Math.PI / 180) * length;
+                        const newY = y +
+                            Math.sin(currentAngle * Math.PI / 180) * length;
                         updateBounds(newX, newY);
                         x = newX;
                         y = newY;
                         break;
                     }
-                    case '+':
+                    case "+":
                         currentAngle += angle;
                         break;
-                    case '-':
+                    case "-":
                         currentAngle -= angle;
                         break;
-                    case '[':
+                    case "[":
                         stack.push({ x, y, angle: currentAngle });
                         break;
-                    case ']': {
+                    case "]": {
                         const state = stack.pop();
                         x = state.x;
                         y = state.y;
@@ -222,8 +269,10 @@ class TreeRenderer {
         const fitScale = Math.min(scaleX, scaleY);
 
         // Centering offset
-        const offsetX = (canvasWidth - bboxWidth * fitScale) / 2 - minX * fitScale;
-        const offsetY = (canvasHeight - bboxHeight * fitScale) / 2 - minY * fitScale;
+        const offsetX = (canvasWidth - bboxWidth * fitScale) / 2 -
+            minX * fitScale;
+        const offsetY = (canvasHeight - bboxHeight * fitScale) / 2 -
+            minY * fitScale;
 
         // --- 3. Draw with transform ---
         x = 0;
@@ -238,23 +287,65 @@ class TreeRenderer {
 
         // First pass: Draw stems and leaves
         this.ctx.beginPath();
-        this.ctx.strokeStyle = '#2E8B57';
+        this.ctx.strokeStyle = "#2E8B57";
         this.ctx.lineWidth = 2 / fitScale;
 
         currentPos = 0;
         while (currentPos < instructions.length) {
             const char = instructions[currentPos];
-            if (char === 'K' && currentPos + 1 < instructions.length && instructions[currentPos + 1] === '(') {
+            if (
+                char === "K" && currentPos + 1 < instructions.length &&
+                instructions[currentPos + 1] === "("
+            ) {
                 // Handle parameterized flower
-                const endPos = instructions.indexOf(')', currentPos);
+                const endPos = instructions.indexOf(")", currentPos);
                 if (endPos !== -1) {
-                    const fullSymbol = instructions.substring(currentPos, endPos + 1);
+                    const fullSymbol = instructions.substring(
+                        currentPos,
+                        endPos + 1,
+                    );
                     const { params } = this.parseParameters(fullSymbol);
                     const size = params[0] || 1.0; // Default to 1.0 if no parameter
-                    
-                    const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
-                    const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
+
+                    const newX = x +
+                        Math.cos(currentAngle * Math.PI / 180) * length;
+                    const newY = y +
+                        Math.sin(currentAngle * Math.PI / 180) * length;
                     // Skip drawing line for flower in first pass
+                    x = newX;
+                    y = newY;
+                    currentPos = endPos + 1;
+                } else {
+                    currentPos++;
+                }
+            } else if (
+                char === "I" && currentPos + 1 < instructions.length &&
+                instructions[currentPos + 1] === "("
+            ) {
+                // Handle parameterized I
+                const endPos = instructions.indexOf(")", currentPos);
+                if (endPos !== -1) {
+                    const fullSymbol = instructions.substring(
+                        currentPos,
+                        endPos + 1,
+                    );
+                    const { params } = this.parseParameters(fullSymbol);
+                    const size = params[0] || 1.0; // Default to 1.0 if no parameter
+
+                    const newX = x +
+                        Math.cos(currentAngle * Math.PI / 180) * length * size;
+                    const newY = y +
+                        Math.sin(currentAngle * Math.PI / 180) * length * size;
+
+                    this.ctx.save();
+                    this.ctx.strokeStyle = "#2E8B57"; // Sea green color
+                    this.ctx.lineWidth = 3 / fitScale; // Thicker line
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, y);
+                    this.ctx.lineTo(newX, newY);
+                    this.ctx.stroke();
+                    this.ctx.restore();
+
                     x = newX;
                     y = newY;
                     currentPos = endPos + 1;
@@ -263,21 +354,17 @@ class TreeRenderer {
                 }
             } else {
                 switch (char) {
-                    case 'F':
-                    case 'A': {
-                        const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
-                        const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
-                        this.ctx.moveTo(x, y);
-                        this.ctx.lineTo(newX, newY);
-                        x = newX;
-                        y = newY;
+                    case "F":
+                    case "A": {
                         break;
                     }
-                    case 'I': {
-                        const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
-                        const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
+                    case "I": {
+                        const newX = x +
+                            Math.cos(currentAngle * Math.PI / 180) * length;
+                        const newY = y +
+                            Math.sin(currentAngle * Math.PI / 180) * length;
                         this.ctx.save();
-                        this.ctx.strokeStyle = '#2E8B57'; // Sea green color
+                        this.ctx.strokeStyle = "#2E8B57"; // Sea green color
                         this.ctx.lineWidth = 3 / fitScale; // Thicker line
                         this.ctx.beginPath();
                         this.ctx.moveTo(x, y);
@@ -288,58 +375,54 @@ class TreeRenderer {
                         y = newY;
                         break;
                     }
-                    case 'a': { // Light green line
-                        const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
-                        const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
-                        this.ctx.save();
-                        this.ctx.strokeStyle = '#90ee90'; // light green
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(x, y);
-                        this.ctx.lineTo(newX, newY);
-                        this.ctx.stroke();
-                        this.ctx.restore();
-                        x = newX;
-                        y = newY;
+                    case "a": {
                         break;
                     }
-                    case 'L': { // Leaf: draw a simple ellipse
+                    case "L": { // Leaf: draw a simple ellipse
                         const leafLength = length * 0.6;
                         const leafWidth = length * 0.3;
                         const leafAngle = currentAngle;
-                        
+
                         // Draw leaf stem
                         this.ctx.save();
-                        this.ctx.strokeStyle = '#2E8B57';
+                        this.ctx.strokeStyle = "#2E8B57";
                         this.ctx.beginPath();
                         this.ctx.moveTo(x, y);
-                        const stemEndX = x + Math.cos(leafAngle * Math.PI / 180) * (leafLength * 0.3);
-                        const stemEndY = y + Math.sin(leafAngle * Math.PI / 180) * (leafLength * 0.3);
+                        const stemEndX = x +
+                            Math.cos(leafAngle * Math.PI / 180) *
+                                (leafLength * 0.3);
+                        const stemEndY = y +
+                            Math.sin(leafAngle * Math.PI / 180) *
+                                (leafLength * 0.3);
                         this.ctx.lineTo(stemEndX, stemEndY);
                         this.ctx.stroke();
-                        
+
                         // Draw leaf as a single ellipse
                         this.ctx.beginPath();
-                        this.ctx.fillStyle = '#90EE90';
+                        this.ctx.fillStyle = "#90EE90";
                         this.ctx.ellipse(
-                            stemEndX, stemEndY,
-                            leafLength, leafWidth,
+                            stemEndX,
+                            stemEndY,
+                            leafLength,
+                            leafWidth,
                             leafAngle * Math.PI / 180,
-                            0, 2 * Math.PI
+                            0,
+                            2 * Math.PI,
                         );
                         this.ctx.fill();
                         this.ctx.restore();
                         break;
                     }
-                    case '+':
+                    case "+":
                         currentAngle += angle;
                         break;
-                    case '-':
+                    case "-":
                         currentAngle -= angle;
                         break;
-                    case '[':
+                    case "[":
                         stack.push({ x, y, angle: currentAngle });
                         break;
-                    case ']': {
+                    case "]": {
                         const state = stack.pop();
                         x = state.x;
                         y = state.y;
@@ -362,56 +445,112 @@ class TreeRenderer {
         currentPos = 0;
         while (currentPos < instructions.length) {
             const char = instructions[currentPos];
-            if (char === 'K' && currentPos + 1 < instructions.length && instructions[currentPos + 1] === '(') {
+            if (
+                char === "K" && currentPos + 1 < instructions.length &&
+                instructions[currentPos + 1] === "("
+            ) {
                 // Handle parameterized flower
-                const endPos = instructions.indexOf(')', currentPos);
+                const endPos = instructions.indexOf(")", currentPos);
                 if (endPos !== -1) {
-                    const fullSymbol = instructions.substring(currentPos, endPos + 1);
+                    const fullSymbol = instructions.substring(
+                        currentPos,
+                        endPos + 1,
+                    );
                     const { params } = this.parseParameters(fullSymbol);
                     const size = params[0] || 1.0; // Default to 1.0 if no parameter
-                    
-                    const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
-                    const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
-                    
+
+                    const newX = x +
+                        Math.cos(currentAngle * Math.PI / 180) * length;
+                    const newY = y +
+                        Math.sin(currentAngle * Math.PI / 180) * length;
+
                     // Draw flower stem
                     this.ctx.save();
-                    this.ctx.strokeStyle = '#2E8B57';
+                    this.ctx.strokeStyle = "#2E8B57";
                     this.ctx.beginPath();
                     this.ctx.moveTo(x, y);
-                    const stemEndX = x + Math.cos(currentAngle * Math.PI / 180) * (length * 0.3);
-                    const stemEndY = y + Math.sin(currentAngle * Math.PI / 180) * (length * 0.3);
+                    const stemEndX = x +
+                        Math.cos(currentAngle * Math.PI / 180) * (length * 0.3);
+                    const stemEndY = y +
+                        Math.sin(currentAngle * Math.PI / 180) * (length * 0.3);
                     this.ctx.lineTo(stemEndX, stemEndY);
                     this.ctx.stroke();
-                    
+
                     // Draw petals with size parameter
                     const flowerRadius = length * 0.3 * size;
                     const petalCount = 6;
                     const petalLength = length * 0.4 * size;
                     const petalWidth = length * 0.2 * size;
-                    
+
                     for (let i = 0; i < petalCount; i++) {
-                        const petalAngle = (i * 360 / petalCount) + currentAngle;
-                        const petalX = stemEndX + Math.cos(petalAngle * Math.PI / 180) * flowerRadius;
-                        const petalY = stemEndY + Math.sin(petalAngle * Math.PI / 180) * flowerRadius;
-                        
+                        const petalAngle = (i * 360 / petalCount) +
+                            currentAngle;
+                        const petalX = stemEndX +
+                            Math.cos(petalAngle * Math.PI / 180) * flowerRadius;
+                        const petalY = stemEndY +
+                            Math.sin(petalAngle * Math.PI / 180) * flowerRadius;
+
                         this.ctx.beginPath();
-                        this.ctx.fillStyle = '#8F00FF';
+                        this.ctx.fillStyle = "#8F00FF";
                         this.ctx.ellipse(
-                            petalX, petalY,
-                            petalLength, petalWidth,
+                            petalX,
+                            petalY,
+                            petalLength,
+                            petalWidth,
                             petalAngle * Math.PI / 180,
-                            0, 2 * Math.PI
+                            0,
+                            2 * Math.PI,
                         );
                         this.ctx.fill();
                     }
-                    
+
                     // Draw flower center
                     this.ctx.beginPath();
-                    this.ctx.fillStyle = '#FFD700'; // Golden center
-                    this.ctx.arc(stemEndX, stemEndY, flowerRadius * 0.3, 0, 2 * Math.PI);
+                    this.ctx.fillStyle = "#FFD700"; // Golden center
+                    this.ctx.arc(
+                        stemEndX,
+                        stemEndY,
+                        flowerRadius * 0.3,
+                        0,
+                        2 * Math.PI,
+                    );
                     this.ctx.fill();
                     this.ctx.restore();
-                    
+
+                    x = newX;
+                    y = newY;
+                    currentPos = endPos + 1;
+                } else {
+                    currentPos++;
+                }
+            } else if (
+                char === "I" && currentPos + 1 < instructions.length &&
+                instructions[currentPos + 1] === "("
+            ) {
+                // Handle parameterized I
+                const endPos = instructions.indexOf(")", currentPos);
+                if (endPos !== -1) {
+                    const fullSymbol = instructions.substring(
+                        currentPos,
+                        endPos + 1,
+                    );
+                    const { params } = this.parseParameters(fullSymbol);
+                    const size = params[0] || 1.0; // Default to 1.0 if no parameter
+
+                    const newX = x +
+                        Math.cos(currentAngle * Math.PI / 180) * length * size;
+                    const newY = y +
+                        Math.sin(currentAngle * Math.PI / 180) * length * size;
+
+                    this.ctx.save();
+                    this.ctx.strokeStyle = "#2E8B57"; // Sea green color
+                    this.ctx.lineWidth = 3 / fitScale; // Thicker line
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, y);
+                    this.ctx.lineTo(newX, newY);
+                    this.ctx.stroke();
+                    this.ctx.restore();
+
                     x = newX;
                     y = newY;
                     currentPos = endPos + 1;
@@ -420,26 +559,28 @@ class TreeRenderer {
                 }
             } else {
                 switch (char) {
-                    case 'F':
-                    case 'A':
-                    case 'I':
-                    case 'a': {
-                        const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
-                        const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
+                    case "F":
+                    case "A":
+                    case "I":
+                    case "a": {
+                        const newX = x +
+                            Math.cos(currentAngle * Math.PI / 180) * length;
+                        const newY = y +
+                            Math.sin(currentAngle * Math.PI / 180) * length;
                         x = newX;
                         y = newY;
                         break;
                     }
-                    case '+':
+                    case "+":
                         currentAngle += angle;
                         break;
-                    case '-':
+                    case "-":
                         currentAngle -= angle;
                         break;
-                    case '[':
+                    case "[":
                         stack.push({ x, y, angle: currentAngle });
                         break;
-                    case ']': {
+                    case "]": {
                         const state = stack.pop();
                         x = state.x;
                         y = state.y;
@@ -457,7 +598,11 @@ class TreeRenderer {
     // Helper method to redraw the current state
     redraw() {
         if (this.lastInstructions) {
-            this.drawTree(this.lastInstructions, this.lastAngle, this.lastLength);
+            this.drawTree(
+                this.lastInstructions,
+                this.lastAngle,
+                this.lastLength,
+            );
         }
     }
 
@@ -467,4 +612,4 @@ class TreeRenderer {
         this.lastAngle = angle;
         this.lastLength = length;
     }
-} 
+}
