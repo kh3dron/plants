@@ -238,7 +238,7 @@ class TreeRenderer {
 
         // First pass: Draw stems and leaves
         this.ctx.beginPath();
-        this.ctx.strokeStyle = '#2c3e50';
+        this.ctx.strokeStyle = '#2E8B57';
         this.ctx.lineWidth = 2 / fitScale;
 
         currentPos = 0;
@@ -254,8 +254,7 @@ class TreeRenderer {
                     
                     const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
                     const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
-                    this.ctx.moveTo(x, y);
-                    this.ctx.lineTo(newX, newY);
+                    // Skip drawing line for flower in first pass
                     x = newX;
                     y = newY;
                     currentPos = endPos + 1;
@@ -310,7 +309,7 @@ class TreeRenderer {
                         
                         // Draw leaf stem
                         this.ctx.save();
-                        this.ctx.strokeStyle = '#228B22';
+                        this.ctx.strokeStyle = '#2E8B57';
                         this.ctx.beginPath();
                         this.ctx.moveTo(x, y);
                         const stemEndX = x + Math.cos(leafAngle * Math.PI / 180) * (leafLength * 0.3);
@@ -376,7 +375,7 @@ class TreeRenderer {
                     
                     // Draw flower stem
                     this.ctx.save();
-                    this.ctx.strokeStyle = '#228B22';
+                    this.ctx.strokeStyle = '#2E8B57';
                     this.ctx.beginPath();
                     this.ctx.moveTo(x, y);
                     const stemEndX = x + Math.cos(currentAngle * Math.PI / 180) * (length * 0.3);
