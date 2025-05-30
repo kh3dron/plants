@@ -258,7 +258,7 @@ class TreeRenderer {
                 case 'L': { // Leaf: draw a simple ellipse
                     const leafLength = length * 0.6;
                     const leafWidth = length * 0.3;
-                    const leafAngle = currentAngle + angle; // Use the angle parameter instead of fixed 45 degrees
+                    const leafAngle = currentAngle; // Use the angle parameter instead of fixed 45 degrees
                     
                     // Draw leaf stem
                     this.ctx.save();
