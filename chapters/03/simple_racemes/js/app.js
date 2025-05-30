@@ -52,7 +52,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const lsystem = new LSystem(axiomInput.value, rules, rng);
     const instructions = lsystem.generate(parseInt(iterationsInput.value));
-    renderer.drawTree(instructions, parseInt(angleInput.value), 10); // Fixed length of 10
+    const angle = parseInt(angleInput.value);
+    console.log('Using angle:', angle); // Debug log
+    renderer.drawTree(instructions, angle, 10); // Fixed length of 10
   }
 
   // Randomize function

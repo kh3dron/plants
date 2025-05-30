@@ -129,9 +129,12 @@ class TreeRenderer {
         console.log('Plant string:', instructions);
         this.clear();
 
+        // Store the angle for use in drawing
+        this.currentAngle = angle;
+
         // --- 1. Simulate to get bounding box ---
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        let x = 0, y = 0, currentAngle = -90;
+        let x = 0, y = 0, currentAngle = -90;  // Start pointing upward
         const stack = [];
         function updateBounds(x, y) {
             if (x < minX) minX = x;
@@ -147,7 +150,12 @@ class TreeRenderer {
                 case 'A':
                 case 'I':
                 case 'L': {
-                    
+                    const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
+                    const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
+                    updateBounds(newX, newY);
+                    x = newX;
+                    y = newY;
+                    break;
                 }
                 case 'K': {
                     const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
@@ -158,10 +166,10 @@ class TreeRenderer {
                     break;
                 }
                 case '+':
-                    currentAngle += angle;
+                    currentAngle += angle;  // Add the angle for right turns
                     break;
                 case '-':
-                    currentAngle -= angle;
+                    currentAngle -= angle;  // Subtract the angle for left turns
                     break;
                 case '[':
                     stack.push({ x, y, angle: currentAngle });
@@ -247,10 +255,10 @@ class TreeRenderer {
                     y = newY;
                     break;
                 }
-                case 'L': { // Leaf: draw a more realistic leaf shape
-                    const leafLength = length * 0.8;
-                    const leafWidth = length * 0.4;
-                    const leafAngle = currentAngle + 45;
+                case 'L': { // Leaf: draw a simple ellipse
+                    const leafLength = length * 0.6;
+                    const leafWidth = length * 0.3;
+                    const leafAngle = currentAngle + angle; // Use the angle parameter instead of fixed 45 degrees
                     
                     // Draw leaf stem
                     this.ctx.save();
@@ -262,20 +270,15 @@ class TreeRenderer {
                     this.ctx.lineTo(stemEndX, stemEndY);
                     this.ctx.stroke();
                     
-                    // Draw leaf blade
+                    // Draw leaf as a single ellipse
                     this.ctx.beginPath();
                     this.ctx.fillStyle = '#90EE90';
-                    this.ctx.moveTo(stemEndX, stemEndY);
-                    
-                    // Create a curved leaf shape
-                    const controlX1 = stemEndX + Math.cos((leafAngle + 30) * Math.PI / 180) * leafWidth;
-                    const controlY1 = stemEndY + Math.sin((leafAngle + 30) * Math.PI / 180) * leafWidth;
-                    const controlX2 = stemEndX + Math.cos((leafAngle - 30) * Math.PI / 180) * leafWidth;
-                    const controlY2 = stemEndY + Math.sin((leafAngle - 30) * Math.PI / 180) * leafWidth;
-                    const endX = stemEndX + Math.cos(leafAngle * Math.PI / 180) * leafLength;
-                    const endY = stemEndY + Math.sin(leafAngle * Math.PI / 180) * leafLength;
-                    
-                    this.ctx.bezierCurveTo(controlX1, controlY1, controlX2, controlY2, endX, endY);
+                    this.ctx.ellipse(
+                        stemEndX, stemEndY,
+                        leafLength, leafWidth,
+                        leafAngle * Math.PI / 180,
+                        0, 2 * Math.PI
+                    );
                     this.ctx.fill();
                     this.ctx.restore();
                     break;
