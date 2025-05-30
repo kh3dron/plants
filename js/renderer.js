@@ -141,12 +141,7 @@ class TreeRenderer {
         updateBounds(x, y);
         for (let char of instructions) {
             switch (char) {
-                case 'F':
-                case 'a':
-                case 'A':
-                case 'I':
-                case 'L':
-                case 'K': {
+                case 'F': {
                     const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
                     const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
                     updateBounds(newX, newY);
@@ -204,73 +199,13 @@ class TreeRenderer {
 
         for (let char of instructions) {
             switch (char) {
-                case 'F':
-                case 'A':
-                case 'I': {
+                case 'F': {
                     const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
                     const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
                     this.ctx.moveTo(x, y);
                     this.ctx.lineTo(newX, newY);
                     x = newX;
                     y = newY;
-                    break;
-                }
-                case 'a': { // Light green line
-                    const newX = x + Math.cos(currentAngle * Math.PI / 180) * length;
-                    const newY = y + Math.sin(currentAngle * Math.PI / 180) * length;
-                    this.ctx.save();
-                    this.ctx.strokeStyle = '#90ee90'; // light green
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(x, y);
-                    this.ctx.lineTo(newX, newY);
-                    this.ctx.stroke();
-                    this.ctx.restore();
-                    x = newX;
-                    y = newY;
-                    break;
-                }
-                case 'L': { // Leaf: protrude, then draw arc
-                    // Protrude from stem at +45 degrees
-                    const protrudeLen = length * 0.7;
-                    const arcLen = length * 0.7;
-                    const protrudeAngle = currentAngle + 45;
-                    const px = x + Math.cos(protrudeAngle * Math.PI / 180) * protrudeLen;
-                    const py = y + Math.sin(protrudeAngle * Math.PI / 180) * protrudeLen;
-                    // Draw protruding line
-                    this.ctx.save();
-                    this.ctx.strokeStyle = '#228B22';
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(x, y);
-                    this.ctx.lineTo(px, py);
-                    this.ctx.stroke();
-                    // Draw arc (leaf blade)
-                    this.ctx.beginPath();
-                    this.ctx.arc(px, py, arcLen * 0.5, Math.PI * 0.2, Math.PI * 1.1, false);
-                    this.ctx.stroke();
-                    this.ctx.restore();
-                    // Do not move turtle
-                    break;
-                }
-                case 'K': { // Flower: protrude, then draw circle
-                    // Protrude from stem at +45 degrees
-                    const protrudeLen = length * 0.7;
-                    const protrudeAngle = currentAngle + 45;
-                    const px = x + Math.cos(protrudeAngle * Math.PI / 180) * protrudeLen;
-                    const py = y + Math.sin(protrudeAngle * Math.PI / 180) * protrudeLen;
-                    // Draw protruding line
-                    this.ctx.save();
-                    this.ctx.strokeStyle = '#FFCC00';
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(x, y);
-                    this.ctx.lineTo(px, py);
-                    this.ctx.stroke();
-                    // Draw flower (circle)
-                    this.ctx.beginPath();
-                    this.ctx.arc(px, py, length * 0.35, 0, 2 * Math.PI);
-                    this.ctx.fillStyle = '#000';
-                    this.ctx.fill();
-                    this.ctx.restore();
-                    // Do not move turtle
                     break;
                 }
                 case '+':

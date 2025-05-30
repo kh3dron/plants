@@ -202,4 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial generation
     generateTree();
+    
+    // Load template D by default
+    loadTemplate(3);
 }); 
