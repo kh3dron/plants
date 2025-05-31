@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binary Trees - L-System Generator</title>
+    <link rel="stylesheet" href="../../../css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        #rules-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 0.5em;
+        }
+        #rules-table th, #rules-table td {
+            padding: 0.3em 0.5em;
+            text-align: left;
+        }
+        #rules-table tr {
+            display: table-row;
+        }
+        #rules-table input[type="text"],
+        #rules-table input[type="number"] {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #add-rule {
+            margin-top: 0.5em;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Compound Racemes</h1>
+        </header>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="iterations">Iterations:</label>
+                <input type="range" id="iterations" min="1" max="30" value="5">
+                <span id="iterations-value">5</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="angle">Branch Angle:</label>
+                <input type="range" id="angle" min="0" max="90" value="45">
+                <span id="angle-value">45°</span>
+            </div>
+            
+            <div class="control-group">
+                <!-- Branch Length control removed -->
+            </div>
+            
+            <div class="control-group">
+                <label for="axiom">Axiom:</label>
+                <input type="text" id="axiom" value="F">
+            </div>
+            <div class="control-group">
+                <label for="seed">Seed:</label>
+                <input type="text" id="seed" value="1">
+            </div>
+            
+            <div class="control-group">
+                <label for="rules-table">Rules:</label>
+                <table id="rules-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Replacement</th>
+                            <th>Probability</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="text" class="rule-symbol" value="F" maxlength="1" style="width:2em;"></td>
+                            <td><input type="text" class="rule-replacement" value="F[+F]F[-F]F"></td>
+                            <td><input type="number" class="rule-probability" value="1" min="0" max="1" step="0.01" style="width:4em;"></td>
+                            <td><button type="button" class="remove-rule">&minus;</button></td>
+                        </tr>
+                        <tr>
+                            <td><input type="text" class="rule-symbol" value="F" maxlength="1" style="width:2em;"></td>
+                            <td><input type="text" class="rule-replacement" value="F[+F]F"></td>
+                            <td><input type="number" class="rule-probability" value="0.33" min="0" max="1" step="0.01" style="width:4em;"></td>
+                            <td><button type="button" class="remove-rule">&minus;</button></td>
+                        </tr>
+                        <tr>
+                            <td><input type="text" class="rule-symbol" value="F" maxlength="1" style="width:2em;"></td>
+                            <td><input type="text" class="rule-replacement" value="F[-F]F"></td>
+                            <td><input type="number" class="rule-probability" value="0.34" min="0" max="1" step="0.01" style="width:4em;"></td>
+                            <td><button type="button" class="remove-rule">&minus;</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="button" id="add-rule">Add Rule</button>
+            </div>
+            
+            <button id="generate">Generate Tree</button>
+            <button id="randomize">Randomize</button>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="treeCanvas"></canvas>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
+    <script src="js/lsystem.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html> 

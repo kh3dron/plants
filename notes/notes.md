@@ -68,8 +68,10 @@
   - others begin producing flowers and then continue producing flowers along that branch (see: lily of the valley, pg.72)
         -this has the effect of growing flowers in a clear age gradient, very nice
 - many different combinations of terminations & continuations in examples here
-- Umbels: multiple internodes attached to a single node
+- **Umbels**: multiple internodes attached to a single node
 
 ## 4: Phyllotaxis
 
 - **Phyllotaxis**: regular arrangement of lateral organs: sunflowers, pineapple bark (?), leaves around a stem
+- **Compound raceme**:
+- **open dibotryoid**:

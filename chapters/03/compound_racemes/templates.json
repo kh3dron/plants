@@ -1,0 +1,41 @@
+[
+  {
+    "name": "A",
+    "angle": 45,
+    "axiom": "a",
+    "patterns": [
+      {
+        "name": "Stem",
+        "variable": "a",
+        "shape": "line",
+        "color": "#00FF00"
+      },
+      {
+        "name": "Leaf",
+        "variable": "A",
+        "shape": "circle",
+        "color": "#00FF00"
+      },
+      {
+        "name": "Bud",
+        "variable": "B",
+        "shape": "circle",
+        "color": "#FF0000"
+      }
+    ],
+    "rules": [
+      {
+        "a": "a",
+        "probability": 1
+      },
+      {
+        "a": "A",
+        "probability": 0.5
+      },
+      {
+        "A": "B",
+        "probability": 0.5
+      }
+    ]
+  }
+]
