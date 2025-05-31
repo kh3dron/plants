@@ -107,8 +107,8 @@ document.addEventListener("DOMContentLoaded", () => {
         { A: "I(1)[+IL(1)][-IL(1)]b", probability: 0.25 },
 
         // flower generator, flowers or turns off
-        { b: "I(1)[+IF(1)][-IF(1)]b", probability: 0.7 },
-        { b: "I(1)[+IF(1)][-IF(1)]B", probability: 0.3 },
+        { b: "[+IF(1)][-IF(1)]b", probability: 0.7 },
+        { b: "[+IF(1)][-IF(1)]B", probability: 0.3 },
 
       ],
     },

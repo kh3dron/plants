@@ -193,8 +193,8 @@ class TreeRenderer {
                     break;
                 }
                 case "b": {
-                    const flowerRadius = length * 0.3;
-                    const petalLength = length * 0.4;
+                    const flowerRadius = length * 0.15;
+                    const petalLength = length * 0.2;
                     const stemEndX = x + Math.cos(currentAngle * Math.PI / 180) * (length * 0.3);
                     const stemEndY = y + Math.sin(currentAngle * Math.PI / 180) * (length * 0.3);
                     updateBounds(stemEndX + petalLength, stemEndY + petalLength);
@@ -273,8 +273,8 @@ class TreeRenderer {
                 }
                 case "L": {
                     // Draw leaf
-                    const leafLength = length * 0.6;
-                    const leafWidth = length * 0.3;
+                    const leafLength = length * 0.3;
+                    const leafWidth = length * 0.15;
                     
                     // Draw leaf stem
                     this.ctx.save();
@@ -304,9 +304,9 @@ class TreeRenderer {
                 }
                 case "F": {
                     // Draw flower
-                    const flowerRadius = length * 0.3;
-                    const petalLength = length * 0.4;
-                    const petalWidth = length * 0.2;
+                    const flowerRadius = length * 0.15;
+                    const petalLength = length * 0.2;
+                    const petalWidth = length * 0.1;
                     
                     // Draw flower stem
                     this.ctx.save();
