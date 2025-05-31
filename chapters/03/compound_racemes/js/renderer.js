@@ -326,7 +326,7 @@ class TreeRenderer {
                         const petalY = stemEndY + Math.sin(petalAngle * Math.PI / 180) * flowerRadius;
                         
                         this.ctx.beginPath();
-                        this.ctx.fillStyle = "#FFCC00"; // Yellow petals
+                        this.ctx.fillStyle = "#0088FF"; // Blue petals
                         this.ctx.ellipse(
                             petalX,
                             petalY,
