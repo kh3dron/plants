@@ -89,26 +89,27 @@ document.addEventListener("DOMContentLoaded", () => {
         { name: "Leaf", variable: "L", shape: "circle", color: "#228B22" },
         { name: "Flower", variable: "F", shape: "circle", color: "#FF0000" },
         { name: "branch", variable: "a", shape: "circle", color: "#228B22" },
-        { name: "Leaf", variable: "A", shape: "circle", color: "#228B22" },
+        { name: "branching vine", variable: "A", shape: "circle", color: "#228B22" },
         { name: "End", variable: "b", shape: "circle", color: "#FFCC00" },
         { name: "Flower generator", variable: "B", shape: "line", color: "#8B5A2B" },
       ],
       rules: [
-        // vine, chance to flip to branch generator
+        // main vine -> main vine
         { a: "I(1)[+IL(1)][-IL(1)]a", probability: 0.8 }, 
-        { a: "I(1)[+IL(1)][-IL(1)]A", probability: 0.2 },
 
-        // branch continues to branch
-        { A: "I(1)[+IL(1)][-IL(1)]A", probability: 0.25 },
+        // main vine -> branching vine
+        { a: "I(1)[+IL(1)][-IL(1)]b", probability: 0.2 },
 
-        // branch turns into flower generator
-        { A: "I(1)[+Ib(1)][-IL(1)]A", probability: 0.25 },
-        { A: "I(1)[+IL(1)][-Ib(1)]A", probability: 0.25 },
-        { A: "I(1)[+IL(1)][-IL(1)]b", probability: 0.25 },
+        // branching vine -> branching vine
+        { b: "I(1)[+Ic]I[-Ic]b", probability: 0.75 },
+        { b: "I(1)c", probability: 0.25 },
 
-        // flower generator, flowers or turns off
-        { b: "I(1)[+IF(1)][-IF(1)]b", probability: 0.7 },
-        { b: "I(1)[+IF(1)][-IF(1)]B", probability: 0.3 },
+        // branching vine -> flower branch
+        { c: "I(1)[+IL]I(1)[-IL]c", probability: 0.8 },
+        { c: "I(1)[+IL]I(1)[-IL]d", probability: 0.2 },
+
+        { d: "I(1)[+IF]I(1)[-IF]d", probability: 0.8 },
+        { d: "I(1)[+IF]I(1)[-IF]e", probability: 0.2 },
 
       ],
     },
