@@ -75,3 +75,4 @@
 - **Phyllotaxis**: regular arrangement of lateral organs: sunflowers, pineapple bark (?), leaves around a stem
 - **Compound raceme**:
 - **open dibotryoid**:
+- **parastichies**: the visual "lanes" you see in a sunflower's rotational pattern. These always occur in golden ratio pairs, at different distances to the flower's center; there may be 55:89 clockwise:counterclockwise at a given distance, but 8:13 at another. nuts!

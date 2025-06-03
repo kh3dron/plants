@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binary Trees - L-System Generator</title>
+    <link rel="stylesheet" href="../../../css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        #rules-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 0.5em;
+        }
+        #rules-table th, #rules-table td {
+            padding: 0.3em 0.5em;
+            text-align: left;
+        }
+        #rules-table tr {
+            display: table-row;
+        }
+        #rules-table input[type="text"],
+        #rules-table input[type="number"] {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #add-rule {
+            margin-top: 0.5em;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Vogel's Sunflower model</h1>
+        </header>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="iterations">Iterations:</label>
+                <input type="range" id="iterations" min="1" max="800" value="800">
+                <span id="iterations-value">800</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="angle">Branch Angle:</label>
+                <input type="range" id="angle" min="0" max="360" value="137.5" step="0.01">
+                <input type="number" id="angle-box" min="0" max="360" value="137.5" step="0.01" style="width: 5em; margin-left: 0.5em;">
+                <span id="angle-value">137.5°</span>
+            </div>
+            
+
+            
+            <button id="generate">Generate Tree</button>
+            <button id="randomize">Randomize</button>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="treeCanvas"></canvas>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
+    <script src="js/lsystem.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html> 
