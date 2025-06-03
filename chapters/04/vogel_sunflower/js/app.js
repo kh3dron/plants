@@ -3,6 +3,19 @@
 // Vogel Sunflower Pattern Generator
 document.addEventListener("DOMContentLoaded", () => {
   const canvas = document.getElementById("treeCanvas");
+  // Make canvas fit the available screen size with normal aspect ratio
+  function resizeCanvas() {
+    // Use a max width and height, but fit to window
+    const maxWidth = Math.min(window.innerWidth * 0.9, 800);
+    const maxHeight = Math.min(window.innerHeight * 0.7, 600);
+    canvas.width = maxWidth;
+    canvas.height = maxHeight;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+    generateSunflower();
+  });
   const ctx = canvas.getContext("2d");
 
   // UI elements (adjust as needed for your HTML)
@@ -52,8 +65,6 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.arc(x, y, circleSize, 0, 2 * Math.PI);
       ctx.fillStyle = "#FFCC00";
       ctx.fill();
-      ctx.strokeStyle = "#B8860B";
-      ctx.stroke();
     }
   }
 
