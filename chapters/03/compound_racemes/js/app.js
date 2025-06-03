@@ -95,16 +95,16 @@ document.addEventListener("DOMContentLoaded", () => {
       ],
       rules: [
         // stem -> stem or branching stem
-        { a: "I(1)[+IL(1)][-IL(1)]a", probability: 0.8 }, 
-        { a: "I(1)[+IL(1)][-IL(1)]b", probability: 0.2 },
+        { a: "I(1)[+IL(1)][-IL(1)]a", probability: .75}, 
+        { a: "b(5)", probability: 1},
 
         // branching stem -> branching stem or flower vine
-        { b: "I(1)[+Ic]I[-Ic]b", probability: 0.75 },
-        { b: "I(1)c", probability: 0.25 },
+        { b: "I(1)[+Ic(5)]I[-Ic(5)]b(${0}-1)", probability: .75 },
+        { b: "c(5)", probability: 0.25 },
 
         // flower vine -> flower vine or flowering branch
-        { c: "I(1)[+IL]I(1)[-IL]c", probability: 0.8 },
-        { c: "I(1)[+IL]I(1)[-IL]d", probability: 0.2 },
+        { c: "I(1)[+IL]I(1)[-IL]c(${0}-1)", probability: 1, min: 1},
+        { c: "d", probability: 1, min: 0},
 
         // flowering branch -> flowering branch or termination
         { d: "I(1)[+IF]I(1)[-IF]d", probability: 0.8 },

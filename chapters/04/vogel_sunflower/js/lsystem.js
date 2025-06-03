@@ -15,8 +15,10 @@ class LSystem {
         rulesArray.forEach(rule => {
             const symbol = rule.symbol.split('(')[0]; // Extract base symbol without parameters
             if (!grouped[symbol]) grouped[symbol] = [];
-            // Keep all rule properties (replacement, probability, min, etc)
-            grouped[symbol].push({ ...rule });
+            grouped[symbol].push({
+                replacement: rule.replacement,
+                probability: rule.probability
+            });
         });
         return grouped;
     }
@@ -33,16 +35,16 @@ class LSystem {
         return { symbol, params: [] };
     }
 
-    // Select a rule based on probabilities
-    selectRule(rulesForSymbol) {
+    // Select a replacement based on probabilities
+    selectReplacement(rulesForSymbol) {
         const r = this.rng();
         let acc = 0;
         for (let rule of rulesForSymbol) {
             acc += rule.probability;
-            if (r <= acc) return rule;
+            if (r <= acc) return rule.replacement;
         }
         // fallback: last rule
-        return rulesForSymbol[rulesForSymbol.length - 1];
+        return rulesForSymbol[rulesForSymbol.length - 1].replacement;
     }
 
     // Evaluate a parameter expression
@@ -82,6 +84,7 @@ class LSystem {
         for (let i = 0; i < iterations; i++) {
             let newResult = '';
             let currentPos = 0;
+            
             while (currentPos < result.length) {
                 const char = result[currentPos];
                 if (this.rules[char]) {
@@ -91,39 +94,18 @@ class LSystem {
                         let endPos = result.indexOf(')', currentPos + 1);
                         if (endPos === -1) {
                             // No closing parenthesis found, treat as regular symbol
-                            const rule = this.selectRule(this.rules[char]);
-                            newResult += rule.replacement;
+                            newResult += this.selectReplacement(this.rules[char]);
                             currentPos++;
                         } else {
                             // Extract the full parameterized symbol
                             const fullSymbol = result.substring(currentPos, endPos + 1);
                             const { symbol, params } = this.parseParameters(fullSymbol);
+                            
                             if (this.rules[symbol]) {
-                                // Filter rules by min (if present)
-                                let applicableRules = this.rules[symbol].filter(rule => {
-                                    if (typeof rule.min === 'number') {
-                                        return params.length > 0 && params[0] >= rule.min;
-                                    }
-                                    return true;
-                                });
-                                if (applicableRules.length === 0) {
-                                    // No applicable rule, keep symbol as is
-                                    newResult += fullSymbol;
-                                } else {
-                                    const rule = this.selectRule(applicableRules);
-                                    // Replace ${n} and math in replacement string
-                                    let processedReplacement = this.evaluateParameter(rule.replacement, params);
-                                    // If the replacement contains c{${0}-1}, replace with c(n-1)
-                                    processedReplacement = processedReplacement.replace(/([A-Za-z])\{\$\{(\d+)\}([+\-*/]\d+)?\}/g, (match, sym, idx, op) => {
-                                        let val = params[parseInt(idx)];
-                                        if (op) {
-                                            // Evaluate the operation
-                                            val = eval(val + op);
-                                        }
-                                        return sym + '(' + val + ')';
-                                    });
-                                    newResult += processedReplacement;
-                                }
+                                const replacement = this.selectReplacement(this.rules[symbol]);
+                                // Replace parameters in the replacement string
+                                let processedReplacement = this.evaluateParameter(replacement, params);
+                                newResult += processedReplacement;
                             } else {
                                 newResult += fullSymbol;
                             }
@@ -131,8 +113,7 @@ class LSystem {
                         }
                     } else {
                         // Regular symbol without parameters
-                        const rule = this.selectRule(this.rules[char]);
-                        newResult += rule.replacement;
+                        newResult += this.selectReplacement(this.rules[char]);
                         currentPos++;
                     }
                 } else {
