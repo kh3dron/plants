@@ -362,7 +362,9 @@ export function buildHall() {
 export function buildRoom(family) {
   const scene = new THREE.Scene();
   const accent = ACCENTS[family.id] || "#6fbf59";
-  scene.background = new THREE.Color("#0c0d11");
+  // subtle per-room mood: tint the background/fog toward the family accent
+  const bg = new THREE.Color("#0c0d11").lerp(new THREE.Color(accent), 0.07);
+  scene.background = bg;
 
   const items = family.variations;
   const cols = Math.min(3, items.length);
@@ -372,9 +374,10 @@ export function buildRoom(family) {
   const halfX = Math.max(7, (cols * spacingX) / 2 + 2.5);
   const halfZ = Math.max(8, (rows * spacingZ) / 2 + 4);
 
-  scene.fog = new THREE.Fog("#0c0d11", 16, 40);
+  scene.fog = new THREE.Fog(bg, 16, 40);
   addRoomShell(scene, halfX, halfZ, "#2c313d");
   baseLighting(scene);
+  scene.add(new THREE.HemisphereLight(new THREE.Color(accent), 0x000000, 0.16));
   const motes = addMotes(scene, halfX - 1, halfZ - 1);
 
   const interactables = [];
