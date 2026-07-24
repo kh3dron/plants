@@ -2,56 +2,350 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🌱 beauty of plants </title>
-  <link rel="stylesheet" href="css/styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🌱 The Algorithmic Beauty of Plants — Museum</title>
+  <style>
+    :root {
+      --accent: #9bd88a;
+      --ink: #f2f3ee;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: #0e0f14;
+      color: var(--ink);
+      font-family: "Courier New", monospace;
+    }
+
+    #app { position: fixed; inset: 0; }
+    canvas { display: block; }
+
+    /* --- HUD --- */
+    #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+
+    #crosshair {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 6px; height: 6px;
+      margin: -3px 0 0 -3px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.55);
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    #crosshair.hot { transform: scale(1.8); background: var(--accent); }
+
+    #location {
+      position: absolute;
+      top: 22px; left: 26px;
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(242, 243, 238, 0.75);
+      border-left: 2px solid var(--accent);
+      padding-left: 12px;
+    }
+    #location small {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: rgba(242, 243, 238, 0.4);
+      margin-top: 3px;
+    }
+
+    #prompt {
+      position: absolute;
+      bottom: 22%; left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      background: rgba(10, 12, 16, 0.78);
+      border: 1px solid rgba(155, 216, 138, 0.4);
+      border-radius: 6px;
+      font-size: 15px;
+      letter-spacing: 0.05em;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      white-space: nowrap;
+    }
+    #prompt.show { opacity: 1; }
+    #prompt kbd {
+      background: var(--accent);
+      color: #0e0f14;
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-weight: bold;
+      margin: 0 2px;
+    }
+
+    #hint {
+      position: absolute;
+      bottom: 18px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      color: rgba(242, 243, 238, 0.4);
+    }
+
+    /* shown when the cursor is released mid-session (does not cover the scene) */
+    #resume {
+      position: absolute;
+      bottom: 52px; left: 50%;
+      transform: translateX(-50%);
+      pointer-events: auto;
+      cursor: pointer;
+      padding: 9px 18px;
+      background: rgba(10, 12, 16, 0.82);
+      border: 1px solid rgba(155, 216, 138, 0.45);
+      border-radius: 6px;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      color: rgba(242, 243, 238, 0.85);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    #resume.show { opacity: 1; pointer-events: auto; }
+    #resume b { color: var(--accent); }
+
+    /* --- overlays --- */
+    #fade {
+      position: fixed; inset: 0; z-index: 8;
+      background: #0e0f14;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+    #fade.on { opacity: 1; }
+
+    #overlay {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      background: radial-gradient(ellipse at center, #171922 0%, #0a0b0f 80%);
+      cursor: pointer;
+      transition: opacity 0.4s ease;
+    }
+    #overlay.hidden { opacity: 0; pointer-events: none; }
+    #overlay h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 600;
+      font-size: clamp(28px, 5vw, 54px);
+      letter-spacing: 0.01em;
+      max-width: 14ch;
+      line-height: 1.1;
+      margin-bottom: 10px;
+    }
+    #overlay .sub {
+      color: var(--accent);
+      font-size: 14px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      margin-bottom: 40px;
+    }
+    #overlay .enter {
+      font-size: 17px;
+      padding: 14px 30px;
+      border: 1px solid rgba(155, 216, 138, 0.5);
+      border-radius: 8px;
+      background: rgba(155, 216, 138, 0.06);
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+    #overlay .controls {
+      margin-top: 42px;
+      display: flex; gap: 26px;
+      flex-wrap: wrap; justify-content: center;
+      color: rgba(242, 243, 238, 0.55);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+    }
+    #overlay .controls b { color: var(--ink); }
+    #overlay .foot {
+      position: absolute; bottom: 20px;
+      font-size: 12px; color: rgba(242, 243, 238, 0.35);
+    }
+    #overlay .foot a { color: rgba(155, 216, 138, 0.7); }
+
+    #err {
+      position: fixed; inset: 0; z-index: 20;
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 40px; text-align: center;
+      background: #0a0b0f; color: #ff9d6f;
+      font-size: 14px; line-height: 1.6;
+    }
+
+    /* --- focus mode --- */
+    body.focus-open #hud, body.focus-open #resume { display: none !important; }
+
+    #focus {
+      position: fixed; inset: 0; z-index: 14;
+      display: flex;
+      background: #0a0b0f;
+      opacity: 1;
+      transition: opacity 0.25s ease;
+    }
+    #focus.hidden { opacity: 0; pointer-events: none; }
+
+    .focus-left {
+      width: min(420px, 40vw);
+      height: 100%;
+      overflow-y: auto;
+      padding: 28px 26px 36px;
+      background: #12141b;
+      border-right: 1px solid rgba(155, 216, 138, 0.22);
+      box-sizing: border-box;
+    }
+    .focus-right {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(ellipse at 60% 45%, #1b1e28 0%, #0a0b0f 78%);
+    }
+    #focus-canvas { width: 100%; height: 100%; display: block; }
+    .focus-hint {
+      position: absolute; bottom: 16px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px; letter-spacing: 0.12em;
+      color: rgba(242, 243, 238, 0.4);
+      pointer-events: none;
+    }
+
+    .focus-close {
+      background: none; border: none; color: var(--accent);
+      font-family: inherit; font-size: 13px; letter-spacing: 0.06em;
+      cursor: pointer; padding: 0 0 18px; margin: 0;
+    }
+    .focus-tag {
+      color: var(--accent); font-size: 11px;
+      letter-spacing: 0.22em; text-transform: uppercase;
+    }
+    #focus-title {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 600; font-size: 30px; margin: 6px 0 12px;
+      line-height: 1.1;
+    }
+    #focus-blurb {
+      font-size: 13px; line-height: 1.6;
+      color: rgba(242, 243, 238, 0.72);
+      margin-bottom: 22px;
+    }
+
+    .focus-section-title {
+      font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: rgba(242, 243, 238, 0.42);
+      margin: 20px 0 10px; border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: 6px;
+    }
+    .ctrl { margin-bottom: 14px; }
+    .ctrl label {
+      display: flex; justify-content: space-between;
+      font-size: 12px; margin-bottom: 5px; font-weight: 500;
+      color: rgba(242,243,238,0.85);
+    }
+    .ctrl label .val { color: var(--accent); font-family: "Courier New", monospace; }
+    .ctrl input[type="range"] { width: 100%; accent-color: #6fbf59; }
+    .ctrl input[type="text"] {
+      width: 100%; box-sizing: border-box;
+      background: #0c0e13; border: 1px solid rgba(255,255,255,0.14);
+      color: var(--ink); font-family: "Courier New", monospace;
+      font-size: 12px; padding: 6px 8px; border-radius: 4px;
+    }
+    .ctrl .rule-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .ctrl .rule-row .sym {
+      color: var(--accent); font-family: "Courier New", monospace;
+      font-size: 13px; min-width: 22px; text-align: right;
+    }
+    .ctrl .rule-row .arrow { color: rgba(242,243,238,0.4); }
+
+    .focus-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+    .focus-actions button {
+      flex: 1 1 auto;
+      background: rgba(155, 216, 138, 0.08);
+      border: 1px solid rgba(155, 216, 138, 0.4);
+      color: var(--ink); font-family: inherit; font-size: 12px;
+      letter-spacing: 0.04em; padding: 9px 10px; border-radius: 5px;
+      cursor: pointer; transition: background 0.15s ease;
+    }
+    .focus-actions button:hover { background: rgba(155, 216, 138, 0.2); }
+    #focus-toast {
+      margin-top: 12px; height: 16px;
+      font-size: 12px; color: var(--accent); opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    #focus-toast.show { opacity: 1; }
+  </style>
 </head>
 
 <body>
+  <div id="app"></div>
 
-  <div style="text-align: center; margin-top: 2em;">
-    <header>
-      <h1>The Algorithmic Beauty of Plants</h1>
-    </header>
-    <img src="bush.png" alt="Bush"
-      style="max-width: 300px; width: 100%; height: auto; margin: 1.5em auto; display: block;" />
-    <main>
-      <ul style="list-style: none; padding: 0; display: inline-block; text-align: left; margin: 0 auto;">
-        
-        <h3>Chapter 1 - Graphical Modeling using L Systems</h3>
-        <ul style="margin-left: 2em;">
-          <li><a href="chapters/01/fractals/index.html">Fractals</a></li>
-          <li><a href="chapters/01/axial_trees/index.html">Axial Trees</a></li>
-          <li><a href="chapters/01/stochastic_axial_trees/index.html">Stochastic Axial Trees</a></li>
-        </ul>
-        <br>
-        
-        <h3>Chapter 2 - Modeling of Trees</h3>
-        <ul style="margin-left: 2em;">
-          <li><a href="chapters/02/honda_tree_models/index.html">3D Axial Trees (not working)</a></li>
-        </ul>
-        <br>
-
-        <h3>Chapter 3 - Developmental Models of Herbaceous Plants</h3>
-        <li>Monopoidal Inflorescences
-          <ul style="margin-left: 2em;">
-            <li><a href="chapters/03/simple_racemes/index.html">Simple Racemes</a></li>
-            <li><a href="chapters/03/acropetal_racemes/index.html">Acropetal Racemes ❌</a></li>
-            <li><a href="chapters/03/compound_racemes/index.html">Compound Racemes</a></li>
-          </ul>
-        </li>
-        <br>
-
-        <h4>Chapter 4 - Phyllotaxis</h4>
-        <ul style="margin-left: 2em;">
-          <li><a href="chapters/04/vogel_sunflower/index.html">Vogel Sunflower</a></li>
-          <li><a href="chapters/04/petaled_sunflower/index.html">Petaled Sunflower</a></li>
-
-      </ul>
-    </main>
+  <div id="hud">
+    <div id="crosshair"></div>
+    <div id="location"><span id="loc-name">Grand Hall</span><small id="loc-sub"></small></div>
+    <div id="prompt"></div>
+    <div id="resume">cursor released — <b>click</b> to resume · take your shot, then come back</div>
+    <div id="hint">W A S D move · mouse look · E enter · F focus · Esc frees the cursor</div>
   </div>
+
+  <div id="fade"></div>
+
+  <div id="overlay">
+    <div class="sub">L-systems · phyllotaxis · fractal botany</div>
+    <h1>The Algorithmic Beauty of Plants</h1>
+    <div class="enter">▶ Click to enter the museum</div>
+    <div class="controls">
+      <span><b>W A S D</b> walk</span>
+      <span><b>Mouse</b> look</span>
+      <span><b>E</b> enter a room</span>
+      <span><b>F</b> focus an exhibit</span>
+      <span><b>Shift</b> run</span>
+    </div>
+    <div class="foot">
+      built from <a href="https://algorithmicbotany.org/papers/abop/abop.pdf" target="_blank" rel="noreferrer">ABOP</a>
+      · prefer the old 2D pages? <a href="chapters.html">classic index</a>
+    </div>
+  </div>
+
+  <div id="err"></div>
+
+  <div id="focus" class="hidden">
+    <div class="focus-left">
+      <button class="focus-close" id="focus-close">← back to the museum</button>
+      <div class="focus-tag" id="focus-sub"></div>
+      <h2 id="focus-title"></h2>
+      <p id="focus-blurb"></p>
+      <div id="focus-controls"></div>
+      <div id="focus-grammar"></div>
+      <div class="focus-actions">
+        <button id="focus-copy">Copy link</button>
+        <button id="focus-download">Download PNG</button>
+        <button id="focus-reset">Reset</button>
+      </div>
+      <div id="focus-toast"></div>
+    </div>
+    <div class="focus-right">
+      <canvas id="focus-canvas"></canvas>
+      <div class="focus-hint">drag to rotate · scroll to zoom</div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import "./museum/main.js";
+  </script>
+  <noscript>This experience requires JavaScript and WebGL.</noscript>
 </body>
 
 </html>
