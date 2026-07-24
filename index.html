@@ -296,8 +296,9 @@
     }
     #focus-toast.show { opacity: 1; }
 
-    /* --- photo mode --- */
-    body.photo #hud, body.photo #resume { display: none !important; }
+    /* --- photo mode / tour --- */
+    body.photo #hud, body.photo #resume,
+    body.tour #hud, body.tour #resume { display: none !important; }
     #photo-badge {
       position: fixed; top: 22px; right: 26px; z-index: 6;
       font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
@@ -359,7 +360,7 @@
     <div id="location"><span id="loc-name">Grand Hall</span><small id="loc-sub"></small></div>
     <div id="prompt"></div>
     <div id="resume">cursor released — <b>click</b> to resume · take your shot, then come back</div>
-    <div id="hint">W A S D move · E enter · F focus · M map · P photo · Esc frees the cursor</div>
+    <div id="hint">W A S D move · E enter · F focus · M map · P photo · T tour · Esc cursor</div>
   </div>
 
   <div id="photo-badge">Photo mode · P exit · Space / C rise-fall · Shift boost</div>

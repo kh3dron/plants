@@ -206,15 +206,19 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     transitionTo(hall);
   }
-  if (e.code === "KeyM" && started && !transitioning && !photo) {
+  if (e.code === "KeyM" && started && !transitioning && !photo && !tour) {
     directoryOpen ? closeDirectory() : openDirectory();
   }
-  if (e.code === "KeyP" && locked && !transitioning && !directoryOpen) {
+  if (e.code === "KeyP" && locked && !transitioning && !directoryOpen && !tour) {
     photo ? exitPhoto() : enterPhoto();
+  }
+  if (e.code === "KeyT" && locked && !transitioning && !directoryOpen && !photo) {
+    tour ? exitTour() : enterTour();
   }
   if (e.code === "Space" && photo) e.preventDefault();
   if (e.code === "Escape" && directoryOpen) closeDirectory();
   if (e.code === "Escape" && photo) exitPhoto();
+  if (e.code === "Escape" && tour) exitTour();
 });
 window.addEventListener("keyup", (e) => {
   keys[e.code] = false;
@@ -318,12 +322,16 @@ function openFromHash() {
 // --- photo mode -----------------------------------------------------------
 
 let photoBadgeT = null;
-function enterPhoto() {
-  photo = true;
-  document.body.classList.add("photo");
+function showBadge(text) {
+  photoBadge.textContent = text;
   photoBadge.classList.add("show");
   clearTimeout(photoBadgeT);
   photoBadgeT = setTimeout(() => photoBadge.classList.remove("show"), 3200);
+}
+function enterPhoto() {
+  photo = true;
+  document.body.classList.add("photo");
+  showBadge("Photo mode · P exit · Space / C rise-fall · Shift boost");
   setPrompt(null);
   crosshair.classList.remove("hot");
 }
@@ -338,6 +346,43 @@ function exitPhoto() {
   }
   player.y = 1.6;
   velocity.set(0, 0, 0);
+}
+
+// --- guided tour ----------------------------------------------------------
+
+let tour = false;
+let tourT = 0;
+function enterTour() {
+  tour = true;
+  tourT = Math.atan2(player.x, player.z); // start near current heading
+  document.body.classList.add("tour");
+  showBadge("Touring · move or T to stop");
+  setPrompt(null);
+  crosshair.classList.remove("hot");
+}
+function exitTour() {
+  tour = false;
+  document.body.classList.remove("tour");
+  photoBadge.classList.remove("show");
+  velocity.set(0, 0, 0);
+  if (!photo) player.y = 1.6;
+}
+function updateTour(dt) {
+  if (
+    keys["KeyW"] || keys["KeyA"] || keys["KeyS"] || keys["KeyD"] ||
+    keys["ArrowUp"] || keys["ArrowDown"] || keys["ArrowLeft"] || keys["ArrowRight"] || keys["Space"]
+  ) {
+    exitTour();
+    return;
+  }
+  tourT += dt * 0.12;
+  const b = current.bounds;
+  const R = Math.min(b.maxX, b.maxZ) * 0.82;
+  player.x = Math.cos(tourT) * R;
+  player.z = Math.sin(tourT) * R;
+  player.y = 2.1;
+  yaw = Math.atan2(-player.x, -player.z); // face the room centre
+  pitch = -0.16;
 }
 
 // --- movement & collision -------------------------------------------------
@@ -521,8 +566,12 @@ function animate() {
         for (const a of current.animators) tickGrowth(a, growthTime);
       }
       if (current.motes) updateMotes(current.motes, dt);
-      updateMovement(dt);
-      updateInteraction();
+      if (tour) {
+        updateTour(dt);
+      } else {
+        updateMovement(dt);
+        updateInteraction();
+      }
     } else {
       // paused (cursor released): hold the scene still for screenshots
       setPrompt(null);
