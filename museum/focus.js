@@ -45,6 +45,7 @@ let yaw = 0.7,
 let dirty = false;
 let lastTime = 0;
 let growthTime = 0;
+let grammarRows = []; // [{ symInput, repInput }]
 
 // --- path helpers ---------------------------------------------------------
 function getByPath(o, p) {
@@ -202,8 +203,9 @@ function buildPanel() {
     el.controls.appendChild(row);
   }
 
-  // grammar editor
+  // grammar editor (add / remove / rename productions)
   el.grammar.innerHTML = "";
+  grammarRows = [];
   if (grammar) {
     el.grammar.innerHTML = '<div class="focus-section-title">Grammar</div>';
     const ax = document.createElement("div");
@@ -217,20 +219,59 @@ function buildPanel() {
 
     const wrap = document.createElement("div");
     wrap.className = "ctrl";
-    for (const sym of Object.keys(grammarState.rules)) {
-      if (grammarState.rules[sym] === sym) continue; // hide identity rules
+    el.grammar.appendChild(wrap);
+
+    const addRow = (sym, rep) => {
       const rr = document.createElement("div");
       rr.className = "rule-row";
-      rr.innerHTML = `<span class="sym">${sym}</span><span class="arrow">→</span>
-        <input type="text" value="${escapeAttr(grammarState.rules[sym])}">`;
-      rr.querySelector("input").addEventListener("input", (e) => {
-        grammarState.rules[sym] = e.target.value;
+      rr.innerHTML = `<input class="sym-in" type="text" maxlength="2" value="${escapeAttr(sym)}">
+        <span class="arrow">→</span>
+        <input class="rep-in" type="text" value="${escapeAttr(rep)}">
+        <button class="rule-del" title="remove rule">×</button>`;
+      const symInput = rr.querySelector(".sym-in");
+      const repInput = rr.querySelector(".rep-in");
+      const rec = { symInput, repInput };
+      const onChange = () => {
+        readGrammarRows();
+        dirty = true;
+      };
+      symInput.addEventListener("input", onChange);
+      repInput.addEventListener("input", onChange);
+      rr.querySelector(".rule-del").addEventListener("click", () => {
+        wrap.removeChild(rr);
+        grammarRows = grammarRows.filter((r) => r !== rec);
+        readGrammarRows();
         dirty = true;
       });
       wrap.appendChild(rr);
+      grammarRows.push(rec);
+    };
+
+    for (const sym of Object.keys(grammarState.rules)) {
+      if (grammarState.rules[sym] === sym) continue; // hide identity rules
+      addRow(sym, grammarState.rules[sym]);
     }
-    el.grammar.appendChild(wrap);
+
+    const addBtn = document.createElement("button");
+    addBtn.className = "rule-add";
+    addBtn.textContent = "+ add rule";
+    addBtn.addEventListener("click", () => {
+      addRow("", "");
+      readGrammarRows();
+    });
+    el.grammar.appendChild(addBtn);
+
+    readGrammarRows(); // sync state to the visible rows (drops identity rules)
   }
+}
+
+function readGrammarRows() {
+  const rules = {};
+  for (const r of grammarRows) {
+    const sym = r.symInput.value.trim();
+    if (sym) rules[sym] = r.repInput.value;
+  }
+  grammarState.rules = rules;
 }
 
 function fmt(x, isInt) {
@@ -277,7 +318,7 @@ export function openFocus(fam, baseVariant, opts = {}) {
   if (opts.restore) {
     if (opts.restore.vals) Object.assign(controlValues, opts.restore.vals);
     if (opts.restore.ax != null) grammarState.axiom = opts.restore.ax;
-    if (opts.restore.ru) grammarState.rules = { ...grammarState.rules, ...opts.restore.ru };
+    if (opts.restore.ru) grammarState.rules = { ...opts.restore.ru }; // replace, not merge
   }
 
   buildPanel();
@@ -349,12 +390,16 @@ function tickGrowth(parent, t) {
 function currentState() {
   const state = { id: family.id, vi: variantIndex, vals: controlValues };
   if (grammar) {
-    state.ax = grammarState.axiom;
-    const ru = {};
-    for (const k of Object.keys(grammarState.rules)) {
-      if (grammarState.rules[k] !== base.rules[k]) ru[k] = grammarState.rules[k];
+    // capture the full edited grammar so adds/removes/renames all round-trip
+    const baseRules = {};
+    for (const k of Object.keys(base.rules || {})) if (base.rules[k] !== k) baseRules[k] = base.rules[k];
+    const changed =
+      grammarState.axiom !== base.axiom ||
+      JSON.stringify(grammarState.rules) !== JSON.stringify(baseRules);
+    if (changed) {
+      state.ax = grammarState.axiom;
+      state.ru = { ...grammarState.rules };
     }
-    if (Object.keys(ru).length) state.ru = ru;
   }
   return state;
 }

@@ -261,6 +261,23 @@
       font-size: 13px; min-width: 22px; text-align: right;
     }
     .ctrl .rule-row .arrow { color: rgba(242,243,238,0.4); }
+    .ctrl .rule-row .sym-in {
+      width: 34px; flex: 0 0 auto; text-align: center;
+      color: var(--accent) !important;
+    }
+    .ctrl .rule-row .rep-in { flex: 1 1 auto; min-width: 0; }
+    .ctrl .rule-row .rule-del {
+      flex: 0 0 auto; background: none; border: none;
+      color: rgba(255, 130, 130, 0.75); cursor: pointer;
+      font-size: 17px; line-height: 1; padding: 0 2px;
+    }
+    .ctrl .rule-row .rule-del:hover { color: #ff8080; }
+    .rule-add {
+      background: none; border: 1px dashed rgba(155, 216, 138, 0.4);
+      color: var(--accent); font-family: inherit; font-size: 12px;
+      padding: 6px 12px; border-radius: 5px; cursor: pointer; margin-top: 4px;
+    }
+    .rule-add:hover { background: rgba(155, 216, 138, 0.1); }
 
     .focus-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
     .focus-actions button {
