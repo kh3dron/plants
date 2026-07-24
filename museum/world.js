@@ -205,38 +205,6 @@ function addRoomShell(scene, halfX, halfZ, wallColor) {
   });
 }
 
-// Slow-drifting dust motes for atmosphere (animated in the main loop).
-function addMotes(scene, halfX, halfZ) {
-  const N = 150;
-  const pos = new Float32Array(N * 3);
-  const vel = new Float32Array(N * 3);
-  const yMin = 0.4;
-  const yMax = WALL_H - 0.6;
-  for (let i = 0; i < N; i++) {
-    pos[i * 3] = (Math.random() * 2 - 1) * halfX;
-    pos[i * 3 + 1] = yMin + Math.random() * (yMax - yMin);
-    pos[i * 3 + 2] = (Math.random() * 2 - 1) * halfZ;
-    vel[i * 3] = (Math.random() - 0.5) * 0.12;
-    vel[i * 3 + 1] = (Math.random() - 0.5) * 0.05;
-    vel[i * 3 + 2] = (Math.random() - 0.5) * 0.12;
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  const mat = new THREE.PointsMaterial({
-    size: 0.035,
-    color: 0xfff0d0,
-    transparent: true,
-    opacity: 0.4,
-    sizeAttenuation: true,
-    depthWrite: false,
-    toneMapped: false,
-  });
-  const pts = new THREE.Points(geo, mat);
-  pts.userData = { vel, halfX, halfZ, yMin, yMax };
-  scene.add(pts);
-  return pts;
-}
-
 function baseLighting(scene) {
   const hemi = new THREE.HemisphereLight(0xbfd0ff, 0x2a2620, 0.85);
   scene.add(hemi);
@@ -279,7 +247,6 @@ export function buildHall() {
   const half = 12;
   addRoomShell(scene, half, half, "#343947");
   baseLighting(scene);
-  const motes = addMotes(scene, half - 1, half - 1);
 
   const interactables = [];
   const spinners = [];
@@ -353,7 +320,6 @@ export function buildHall() {
     interactables,
     spinners,
     animators,
-    motes,
   };
 }
 
@@ -378,7 +344,6 @@ export function buildRoom(family) {
   addRoomShell(scene, halfX, halfZ, "#2c313d");
   baseLighting(scene);
   scene.add(new THREE.HemisphereLight(new THREE.Color(accent), 0x000000, 0.16));
-  const motes = addMotes(scene, halfX - 1, halfZ - 1);
 
   const interactables = [];
   const spinners = [];
@@ -455,7 +420,6 @@ export function buildRoom(family) {
     interactables,
     spinners,
     animators,
-    motes,
     exit: true,
   };
 }

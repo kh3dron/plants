@@ -30,6 +30,63 @@ function normalize(obj, targetHeight) {
   return g;
 }
 
+// Wrap a flat (XY-plane) specimen in a framed backing panel so it reads as a
+// gallery piece against a solid ground instead of vanishing into the room.
+function frameSpecimen(inner, opts = {}) {
+  const g = new THREE.Group();
+  g.add(inner);
+  g.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(inner);
+  const w = box.max.x - box.min.x;
+  const h = box.max.y - box.min.y;
+  const cx = (box.max.x + box.min.x) / 2;
+  const cy = (box.max.y + box.min.y) / 2;
+  const pad = Math.max(0.18, Math.max(w, h) * 0.1);
+  const pw = w + pad * 2;
+  const ph = h + pad * 2;
+  const z = -0.06;
+
+  const bg = new THREE.Mesh(
+    new THREE.PlaneGeometry(pw, ph),
+    new THREE.MeshStandardMaterial({
+      color: opts.bg || "#0a0d12",
+      roughness: 0.95,
+      metalness: 0.0,
+      side: THREE.DoubleSide,
+    }),
+  );
+  bg.position.set(cx, cy, z);
+  bg.receiveShadow = true;
+  g.add(bg);
+
+  const fmat = new THREE.MeshStandardMaterial({
+    color: opts.frame || "#b9a06a",
+    roughness: 0.45,
+    metalness: 0.55,
+  });
+  const t = pad * 0.55; // bar thickness
+  const d = 0.14; // bar depth toward the viewer
+  const bar = (bw, bh, x, y) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, d), fmat);
+    m.position.set(x, y, z + d * 0.35);
+    m.castShadow = true;
+    g.add(m);
+  };
+  bar(pw + t, t, cx, cy + ph / 2);
+  bar(pw + t, t, cx, cy - ph / 2);
+  bar(t, ph + t, cx - pw / 2, cy);
+  bar(t, ph + t, cx + pw / 2, cy);
+
+  // re-seat base at y=0, centered in x/z
+  g.updateMatrixWorld(true);
+  const fb = new THREE.Box3().setFromObject(g);
+  const c = fb.getCenter(new THREE.Vector3());
+  g.position.x -= c.x;
+  g.position.z -= c.z;
+  g.position.y -= fb.min.y;
+  return g;
+}
+
 const PAL = {
   trunk: new THREE.Color("#5b3f26"),
   bark: new THREE.Color("#6d4c2c"),
@@ -48,7 +105,8 @@ function buildStringPlant(v) {
   const ls = new LSystem(v.axiom, v.rules, rng);
   const str = ls.generate(v.iterations);
   const group = interpret(tokenizePlain(str), v.turtle);
-  return normalize(group, v.height || 2.6);
+  const norm = normalize(group, v.height || 2.6);
+  return v.framed ? frameSpecimen(norm, v.frameStyle) : norm;
 }
 
 function buildParametricTree(v) {
@@ -272,7 +330,8 @@ function buildIFS(v) {
     sizeAttenuation: true,
     toneMapped: false,
   });
-  return normalize(new THREE.Points(geo, mat), v.height || 2.7);
+  const norm = normalize(new THREE.Points(geo, mat), v.height || 2.7);
+  return v.framed ? frameSpecimen(norm, v.frameStyle) : norm;
 }
 
 // One developmental stage (used by the growth animation).
@@ -1253,5 +1312,9 @@ for (const f of FAMILIES) {
   if (c) {
     f.controls = c.controls;
     f.grammar = !!c.grammar;
+  }
+  // the flat, abstract "works" get a framed backing so they read in 3D
+  if (f.id === "fractals" || f.id === "ifs") {
+    for (const v of f.variations) v.framed = true;
   }
 }
