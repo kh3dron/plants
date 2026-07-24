@@ -1,7 +1,7 @@
 // App shell: renderer, first-person pointer-lock controls, collision,
 // proximity interaction, and fade transitions between the hall and rooms.
 import * as THREE from "three";
-import { buildHall, buildRoom } from "./world.js";
+import { buildHall, buildRoom, ACCENTS } from "./world.js";
 import { familyById, FAMILIES } from "./specimens.js";
 import { openFocus, decodeHash } from "./focus.js";
 
@@ -195,12 +195,18 @@ document.addEventListener("mousemove", (e) => {
 
 window.addEventListener("keydown", (e) => {
   keys[e.code] = true;
+  const focusOpen = document.body.classList.contains("focus-open");
+  if (focusOpen) return; // focus mode has its own key handling
   if (e.code === "KeyE" && locked && !transitioning) tryInteract();
   if (e.code === "KeyF" && locked && !transitioning && nearest) focusNearest();
   if (e.code === "Backspace" && locked && current && current.familyId) {
     e.preventDefault();
     transitionTo(hall);
   }
+  if (e.code === "KeyM" && started && !transitioning) {
+    directoryOpen ? closeDirectory() : openDirectory();
+  }
+  if (e.code === "Escape" && directoryOpen) closeDirectory();
 });
 window.addEventListener("keyup", (e) => {
   keys[e.code] = false;
@@ -226,6 +232,61 @@ function focusNearest() {
   const variant = fam.variations[vi];
   openFocus(fam, variant, { vi, onClose: () => {} });
   document.exitPointerLock();
+}
+
+// --- directory / room map -------------------------------------------------
+
+const dirEl = document.getElementById("directory");
+const dirGrid = document.getElementById("dir-grid");
+let directoryOpen = false;
+let dirBuilt = false;
+
+function buildDirectory() {
+  if (dirBuilt) return;
+  dirBuilt = true;
+  const cards = [
+    { id: "hall", name: "Grand Hall", sub: "all rooms", count: FAMILIES.length + " specimens", accent: "#9bd88a" },
+    ...FAMILIES.map((f) => ({
+      id: f.id,
+      name: f.title,
+      sub: f.subtitle,
+      count: f.variations.length + " permutations",
+      accent: ACCENTS[f.id] || "#6fbf59",
+    })),
+  ];
+  for (const c of cards) {
+    const btn = document.createElement("button");
+    btn.className = "dir-card";
+    btn.dataset.id = c.id;
+    btn.style.setProperty("--c", c.accent);
+    btn.innerHTML = `<span class="dir-name">${c.name}</span>
+      <span class="dir-sub">${c.sub} · <span class="dir-count">${c.count}</span></span>`;
+    btn.addEventListener("click", () => jumpTo(c.id));
+    dirGrid.appendChild(btn);
+  }
+}
+
+function openDirectory() {
+  buildDirectory();
+  const hereId = current && current.familyId ? current.familyId : "hall";
+  dirGrid.querySelectorAll(".dir-card").forEach((b) => b.classList.toggle("here", b.dataset.id === hereId));
+  document.body.classList.add("dir-open");
+  dirEl.classList.remove("hidden");
+  directoryOpen = true;
+  document.exitPointerLock();
+}
+
+function closeDirectory() {
+  directoryOpen = false;
+  dirEl.classList.add("hidden");
+  document.body.classList.remove("dir-open");
+}
+
+function jumpTo(id) {
+  closeDirectory();
+  if (id === "hall") transitionTo(hall);
+  else transitionTo(() => room(id));
+  requestLock();
 }
 
 // open focus directly from a shared #exhibit=... link

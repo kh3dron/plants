@@ -225,7 +225,7 @@ function spotOver(scene, x, z, target, color) {
   return spot;
 }
 
-const ACCENTS = {
+export const ACCENTS = {
   fractals: "#7dffc0",
   trees2d: "#8fe06a",
   trees3d: "#c8a06a",
