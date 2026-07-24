@@ -13,6 +13,7 @@ const crosshair = document.getElementById("crosshair");
 const locName = document.getElementById("loc-name");
 const locSub = document.getElementById("loc-sub");
 const errEl = document.getElementById("err");
+const photoBadge = document.getElementById("photo-badge");
 
 let renderer, camera;
 try {
@@ -133,6 +134,7 @@ let yaw = Math.PI;
 let pitch = 0;
 const keys = {};
 let locked = false;
+let photo = false;
 
 function applyCameraOrientation() {
   camera.position.copy(player);
@@ -190,23 +192,29 @@ document.addEventListener("mousemove", (e) => {
   if (!locked) return;
   yaw -= e.movementX * 0.0022;
   pitch -= e.movementY * 0.0022;
-  pitch = Math.max(-1.2, Math.min(1.2, pitch));
+  const lim = photo ? 1.5 : 1.2;
+  pitch = Math.max(-lim, Math.min(lim, pitch));
 });
 
 window.addEventListener("keydown", (e) => {
   keys[e.code] = true;
   const focusOpen = document.body.classList.contains("focus-open");
   if (focusOpen) return; // focus mode has its own key handling
-  if (e.code === "KeyE" && locked && !transitioning) tryInteract();
-  if (e.code === "KeyF" && locked && !transitioning && nearest) focusNearest();
-  if (e.code === "Backspace" && locked && current && current.familyId) {
+  if (e.code === "KeyE" && locked && !transitioning && !photo) tryInteract();
+  if (e.code === "KeyF" && locked && !transitioning && !photo && nearest) focusNearest();
+  if (e.code === "Backspace" && locked && current && current.familyId && !photo) {
     e.preventDefault();
     transitionTo(hall);
   }
-  if (e.code === "KeyM" && started && !transitioning) {
+  if (e.code === "KeyM" && started && !transitioning && !photo) {
     directoryOpen ? closeDirectory() : openDirectory();
   }
+  if (e.code === "KeyP" && locked && !transitioning && !directoryOpen) {
+    photo ? exitPhoto() : enterPhoto();
+  }
+  if (e.code === "Space" && photo) e.preventDefault();
   if (e.code === "Escape" && directoryOpen) closeDirectory();
+  if (e.code === "Escape" && photo) exitPhoto();
 });
 window.addEventListener("keyup", (e) => {
   keys[e.code] = false;
@@ -307,11 +315,37 @@ function openFromHash() {
   return true;
 }
 
+// --- photo mode -----------------------------------------------------------
+
+let photoBadgeT = null;
+function enterPhoto() {
+  photo = true;
+  document.body.classList.add("photo");
+  photoBadge.classList.add("show");
+  clearTimeout(photoBadgeT);
+  photoBadgeT = setTimeout(() => photoBadge.classList.remove("show"), 3200);
+  setPrompt(null);
+  crosshair.classList.remove("hot");
+}
+function exitPhoto() {
+  photo = false;
+  document.body.classList.remove("photo");
+  photoBadge.classList.remove("show");
+  if (current) {
+    const b = current.bounds;
+    player.x = Math.max(b.minX, Math.min(b.maxX, player.x));
+    player.z = Math.max(b.minZ, Math.min(b.maxZ, player.z));
+  }
+  player.y = 1.6;
+  velocity.set(0, 0, 0);
+}
+
 // --- movement & collision -------------------------------------------------
 
 const PLAYER_R = 0.4;
 
 function updateMovement(dt) {
+  if (photo) return updateFreeFly(dt);
   const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
   // right = forward × up (up = +Y)
   const rightV = new THREE.Vector3(-Math.cos(yaw), 0, Math.sin(yaw));
@@ -351,6 +385,34 @@ function updateMovement(dt) {
     }
   }
   player.y = 1.6;
+}
+
+// Free-fly camera for photo mode: full 3D movement, no collision, rise/fall.
+function updateFreeFly(dt) {
+  const cp = Math.cos(pitch);
+  const look = new THREE.Vector3(Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp);
+  const rightV = new THREE.Vector3(-Math.cos(yaw), 0, Math.sin(yaw));
+  const wish = new THREE.Vector3();
+  if (keys["KeyW"] || keys["ArrowUp"]) wish.add(look);
+  if (keys["KeyS"] || keys["ArrowDown"]) wish.sub(look);
+  if (keys["KeyD"] || keys["ArrowRight"]) wish.add(rightV);
+  if (keys["KeyA"] || keys["ArrowLeft"]) wish.sub(rightV);
+  if (keys["Space"]) wish.y += 1;
+  if (keys["KeyC"]) wish.y -= 1;
+  const speed = keys["ShiftLeft"] || keys["ShiftRight"] ? 12 : 5;
+  if (wish.lengthSq() > 0) wish.normalize().multiplyScalar(speed);
+  const k = Math.min(1, dt * 10);
+  velocity.x += (wish.x - velocity.x) * k;
+  velocity.y += (wish.y - velocity.y) * k;
+  velocity.z += (wish.z - velocity.z) * k;
+  player.addScaledVector(velocity, dt);
+  if (current) {
+    const b = current.bounds;
+    const M = 6; // let the camera drift a little past the walls
+    player.x = Math.max(b.minX - M, Math.min(b.maxX + M, player.x));
+    player.z = Math.max(b.minZ - M, Math.min(b.maxZ + M, player.z));
+  }
+  player.y = Math.max(0.2, Math.min(8, player.y));
 }
 
 // --- interaction proximity ------------------------------------------------
