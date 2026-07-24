@@ -415,6 +415,23 @@ let growthTime = 0;
 
 // Reveal one developmental stage at a time: grow 0..count-1, hold at full for
 // `hold` extra slots, then loop back to the start.
+function updateMotes(pts, dt) {
+  const a = pts.geometry.attributes.position.array;
+  const { vel, halfX, halfZ, yMin, yMax } = pts.userData;
+  for (let i = 0; i < a.length; i += 3) {
+    a[i] += vel[i] * dt;
+    a[i + 1] += vel[i + 1] * dt;
+    a[i + 2] += vel[i + 2] * dt;
+    if (a[i] > halfX) a[i] = -halfX;
+    else if (a[i] < -halfX) a[i] = halfX;
+    if (a[i + 2] > halfZ) a[i + 2] = -halfZ;
+    else if (a[i + 2] < -halfZ) a[i + 2] = halfZ;
+    if (a[i + 1] > yMax) a[i + 1] = yMin;
+    else if (a[i + 1] < yMin) a[i + 1] = yMax;
+  }
+  pts.geometry.attributes.position.needsUpdate = true;
+}
+
 function tickGrowth(parent, t) {
   const g = parent.userData.growth;
   const slots = g.count + g.hold;
@@ -441,6 +458,7 @@ function animate() {
         growthTime += dt;
         for (const a of current.animators) tickGrowth(a, growthTime);
       }
+      if (current.motes) updateMotes(current.motes, dt);
       updateMovement(dt);
       updateInteraction();
     } else {

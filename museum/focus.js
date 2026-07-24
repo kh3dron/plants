@@ -16,6 +16,7 @@ const el = {
   copy: document.getElementById("focus-copy"),
   download: document.getElementById("focus-download"),
   reset: document.getElementById("focus-reset"),
+  random: document.getElementById("focus-random"),
   toast: document.getElementById("focus-toast"),
 };
 
@@ -408,4 +409,15 @@ el.reset.addEventListener("click", () => {
   buildPanel();
   dirty = true;
   updateHash();
+});
+el.random.addEventListener("click", () => {
+  for (const c of controlsFor(base)) {
+    const steps = Math.max(1, Math.floor((c.max - c.min) / c.step));
+    const n = Math.floor(Math.random() * (steps + 1));
+    controlValues[c.path] = +(c.min + n * c.step).toFixed(6);
+  }
+  buildPanel();
+  dirty = true;
+  updateHash();
+  flash("randomized");
 });
