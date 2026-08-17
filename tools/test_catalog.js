@@ -4,7 +4,9 @@
 //   deno run --import-map=tools/importmap.json --allow-read \
 //     --allow-net=cdn.jsdelivr.net tools/test_catalog.js
 import * as THREE from "three";
+import { load as yamlLoad } from "js-yaml";
 import { FAMILIES, familyById } from "../museum/specimens.js";
+import { normalizePlan } from "../museum/plan.js";
 import {
   rerollBrood,
   selectOffspring,
@@ -100,6 +102,39 @@ console.log(
 );
 reseedLineage();
 syncVariations(evo);
+
+// floor plan: must parse, validate, and reference every family in the catalog
+{
+  try {
+    const text = await Deno.readTextFile(new URL("../museum/floorplan.yaml", import.meta.url));
+    const plan = normalizePlan(yamlLoad(text));
+    const covered = new Set();
+    let pedestals = 0;
+    for (const hall of plan.order) {
+      for (const ex of hall.exhibits) covered.add(ex.family.id);
+      if (hall.family) covered.add(hall.family.id);
+      pedestals += hall.exhibits.length;
+    }
+    const missing = FAMILIES.filter((f) => !covered.has(f.id)).map((f) => f.id);
+    console.log(
+      `${missing.length ? "FAIL " : "OK   "} floor plan: ${plan.order.length} halls, ${pedestals} placed exhibits, entrance=${plan.entranceId}` +
+        (missing.length ? `, families missing from the plan: ${missing.join(", ")}` : ""),
+    );
+    if (missing.length) fails++;
+    for (const hall of plan.order) {
+      for (const d of hall.doors) {
+        const back = plan.halls.get(d.to).doors.some((r) => r.to === hall.id);
+        if (!back) {
+          console.log(`FAIL  floor plan: door ${hall.id} → ${d.to} has no return door`);
+          fails++;
+        }
+      }
+    }
+  } catch (e) {
+    console.log("FAIL  floor plan:", e.message);
+    fails++;
+  }
+}
 
 console.log(fails ? `\n${fails} FAILURES` : "\nALL PASS");
 Deno.exit(fails ? 1 : 0);

@@ -1,0 +1,63 @@
+# ── Museum floor plan ────────────────────────────────────────────────────────
+# The museum is a graph of rectangular halls connected by doors you walk
+# through. Layout inside a hall is derived and deterministic: exhibits fill
+# pedestal pairs along the side walls in list order, and the hall stretches
+# north-south to fit. Nothing here is positioned by hand.
+#
+#   To put a new exhibit next to an existing one: insert a line next to it.
+#   To add a hall: add a block and one door line pointing at a neighbor.
+#
+# hall fields:
+#   id        unique slug (directory id, also used by window.__museum.goRoom)
+#   family    shorthand — the hall shows every variation of this specimens.js
+#             family and inherits its title / subtitle / accent
+#   exhibits  explicit ordered list instead of `family`. Ref forms:
+#               fam          the family's hero variation
+#               fam/*        every variation, catalog order
+#               fam/3        one variation by index
+#               fam/Name     one variation by exact name
+#   kind      gallery (default) | greenhouse | generations | vault
+#             (the three non-gallery kinds are the stateful special rooms)
+#   doors     wall → hall id, walls north/south/east/west. Declare a door on
+#             either side only; the return door is added automatically on the
+#             opposite wall if free, else the first free wall.
+#   title, subtitle, accent, width, plaque   optional overrides
+
+title: The Algorithmic Beauty of Plants
+entrance: atrium
+
+halls:
+  - id: atrium
+    title: Atrium
+    subtitle: L-systems · phyllotaxis · fractal botany
+    accent: "#9bd88a"
+    plaque: walk through a doorway · F studies an exhibit · M opens the map
+    doors:
+      north: fractals # wing 1 · the book, chapter by chapter
+      east: ifs # wing 2 · emergence beyond the book
+      west: evolution # wing 3 · the living collection
+
+  # ── wing 1 · the book ──────────────────────────────────────────────────────
+  - { id: fractals, family: fractals, doors: { north: trees2d } }
+  - { id: trees2d, family: trees2d, doors: { north: trees3d } }
+  - { id: trees3d, family: trees3d, doors: { north: colonization } }
+  - { id: colonization, family: colonization, doors: { north: racemes } }
+  - { id: racemes, family: racemes, doors: { north: phyllotaxis } }
+  - { id: phyllotaxis, family: phyllotaxis, doors: { north: leaves } }
+  - { id: leaves, family: leaves, doors: { north: development } }
+  - { id: development, family: development }
+
+  # ── wing 2 · emergence ─────────────────────────────────────────────────────
+  - { id: ifs, family: ifs, doors: { east: cells } }
+  - { id: cells, family: cells, doors: { east: automata } }
+  - { id: automata, family: automata, doors: { east: particlelife } }
+  - { id: particlelife, family: particlelife, doors: { east: reaction } }
+  - { id: reaction, family: reaction, doors: { east: dla } }
+  - { id: dla, family: dla, doors: { east: lenia } }
+  - { id: lenia, family: lenia }
+
+  # ── wing 3 · the living collection ─────────────────────────────────────────
+  # both special rooms are staged to be entered from their south wall
+  - { id: evolution, kind: greenhouse, doors: { south: atrium, west: generations } }
+  - { id: generations, kind: generations, doors: { south: evolution, west: vault } }
+  - { id: vault, kind: vault }

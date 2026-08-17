@@ -1,5 +1,6 @@
 {
   "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "js-yaml": "https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/+esm"
   }
 }

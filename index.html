@@ -121,17 +121,18 @@
     }
     #fade.on { opacity: 1; }
 
-    #overlay {
+    /* transient welcome card — never blocks the museum; fades on capture or timeout */
+    #intro {
       position: fixed; inset: 0; z-index: 10;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       text-align: center;
-      background: radial-gradient(ellipse at center, #171922 0%, #0a0b0f 80%);
-      cursor: pointer;
-      transition: opacity 0.4s ease;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, rgba(14, 15, 20, 0.72) 0%, rgba(14, 15, 20, 0.18) 55%, rgba(14, 15, 20, 0) 78%);
+      transition: opacity 0.6s ease;
     }
-    #overlay.hidden { opacity: 0; pointer-events: none; }
-    #overlay h1 {
+    #intro.hidden { opacity: 0; }
+    #intro h1 {
       font-family: Georgia, "Times New Roman", serif;
       font-weight: 600;
       font-size: clamp(28px, 5vw, 54px);
@@ -140,36 +141,28 @@
       line-height: 1.1;
       margin-bottom: 10px;
     }
-    #overlay .sub {
+    #intro .sub {
       color: var(--accent);
       font-size: 14px;
       letter-spacing: 0.25em;
       text-transform: uppercase;
-      margin-bottom: 40px;
+      margin-bottom: 14px;
     }
-    #overlay .enter {
-      font-size: 17px;
-      padding: 14px 30px;
-      border: 1px solid rgba(155, 216, 138, 0.5);
-      border-radius: 8px;
-      background: rgba(155, 216, 138, 0.06);
+    #intro .go {
+      margin-top: 26px;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      color: rgba(242, 243, 238, 0.75);
       animation: pulse 2.4s ease-in-out infinite;
     }
+    #intro .go b { color: var(--ink); }
     @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
-    #overlay .controls {
-      margin-top: 42px;
-      display: flex; gap: 26px;
-      flex-wrap: wrap; justify-content: center;
-      color: rgba(242, 243, 238, 0.55);
-      font-size: 13px;
-      letter-spacing: 0.08em;
-    }
-    #overlay .controls b { color: var(--ink); }
-    #overlay .foot {
-      position: absolute; bottom: 20px;
+    #intro .foot {
+      position: absolute; bottom: 58px;
       font-size: 12px; color: rgba(242, 243, 238, 0.35);
+      pointer-events: auto;
     }
-    #overlay .foot a { color: rgba(155, 216, 138, 0.7); }
+    #intro .foot a { color: rgba(155, 216, 138, 0.7); }
 
     #err {
       position: fixed; inset: 0; z-index: 20;
@@ -357,27 +350,20 @@
 
   <div id="hud">
     <div id="crosshair"></div>
-    <div id="location"><span id="loc-name">Grand Hall</span><small id="loc-sub"></small></div>
+    <div id="location"><span id="loc-name">Atrium</span><small id="loc-sub"></small></div>
     <div id="prompt"></div>
-    <div id="resume">cursor released — <b>click</b> to resume · take your shot, then come back</div>
-    <div id="hint">W A S D move · E enter · F focus · M map · P photo · T tour · Esc cursor</div>
+    <div id="resume">mouse free — <b>click</b> recaptures · drag to look</div>
+    <div id="hint">W A S D move · drag looks · click captures · E act · F focus · M map · P photo · T tour</div>
   </div>
 
   <div id="photo-badge">Photo mode · P exit · Space / C rise-fall · Shift boost</div>
 
   <div id="fade"></div>
 
-  <div id="overlay">
+  <div id="intro">
     <div class="sub">L-systems · phyllotaxis · fractal botany</div>
     <h1>The Algorithmic Beauty of Plants</h1>
-    <div class="enter">▶ Click to enter the museum</div>
-    <div class="controls">
-      <span><b>W A S D</b> walk</span>
-      <span><b>Mouse</b> look</span>
-      <span><b>E</b> enter a room</span>
-      <span><b>F</b> focus an exhibit</span>
-      <span><b>Shift</b> run</span>
-    </div>
+    <div class="go"><b>W A S D</b> walks · <b>drag</b> looks · <b>click</b> captures the mouse</div>
     <div class="foot">
       built from <a href="https://algorithmicbotany.org/papers/abop/abop.pdf" target="_blank" rel="noreferrer">ABOP</a>
       · prefer the old 2D pages? <a href="chapters.html">classic index</a>
@@ -421,7 +407,8 @@
     {
       "imports": {
         "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+        "js-yaml": "https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/+esm"
       }
     }
   </script>

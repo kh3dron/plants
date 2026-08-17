@@ -1,9 +1,10 @@
-// Builds the two kinds of locations: the main hall (one pedestal per family)
-// and a per-family room (a grid of that family's permutations). Each builder
-// returns a scene plus the metadata main.js needs for movement, collision and
-// interaction.
+// Builds one hall at a time from the normalized floor plan (see plan.js /
+// floorplan.yaml). Every hall is a rectangle: galleries lay their exhibits
+// out in pedestal pairs along the side walls in list order and stretch to
+// fit; the three special rooms (greenhouse, hall of generations, seed vault)
+// keep their own machinery. Doors are carved into walls — main.js handles
+// walking through them.
 import * as THREE from "three";
-import { FAMILIES } from "./specimens.js";
 import {
   getGeneration,
   getParentGenome,
@@ -22,6 +23,10 @@ import {
 import { vaultPlant, vaultList, syncVaultVariations } from "./vault.js";
 
 const WALL_H = 6.2;
+const DOOR_W = 2.6;
+const DOOR_H = 3.6;
+const SPACING = 4.6; // pedestal pitch along the gallery axis
+const END_PAD = 3.2; // clear floor between the end walls and the first/last pair
 
 // Free the GPU resources of a subtree that is being replaced. Only safe for
 // objects whose geometry isn't shared (breeder plants and labels qualify —
@@ -184,7 +189,70 @@ function pedestal(accent) {
   return { group: grp, ring, topY: 1.12 };
 }
 
-function addRoomShell(scene, halfX, halfZ, wallColor) {
+// One wall in local space: spans x∈[-w/2, w/2], y∈[0, WALL_H], faces +z.
+// A door carves an opening at the center and dresses it: glowing frame,
+// destination label, dark portal, floor threshold strip.
+function wallGroup(width, wallMat, door) {
+  const g = new THREE.Group();
+  const seg = (w, cx, cy, h) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat);
+    m.position.set(cx, cy, 0);
+    m.receiveShadow = true;
+    g.add(m);
+  };
+  if (!door) {
+    seg(width, 0, WALL_H / 2, WALL_H);
+    return g;
+  }
+  const side = (width - DOOR_W) / 2;
+  seg(side, -(DOOR_W + side) / 2, WALL_H / 2, WALL_H);
+  seg(side, (DOOR_W + side) / 2, WALL_H / 2, WALL_H);
+  seg(DOOR_W, 0, (WALL_H + DOOR_H) / 2, WALL_H - DOOR_H);
+
+  const accent = door.accent || "#6fbf59";
+  const frameMat = new THREE.MeshStandardMaterial({
+    color: "#101216",
+    emissive: new THREE.Color(accent),
+    emissiveIntensity: 0.85,
+  });
+  const postGeo = new THREE.BoxGeometry(0.09, DOOR_H, 0.09);
+  for (const sx of [-1, 1]) {
+    const p = new THREE.Mesh(postGeo, frameMat);
+    p.position.set(sx * (DOOR_W / 2 + 0.05), DOOR_H / 2, 0.04);
+    g.add(p);
+  }
+  const lintel = new THREE.Mesh(
+    new THREE.BoxGeometry(DOOR_W + 0.2, 0.09, 0.09),
+    frameMat,
+  );
+  lintel.position.set(0, DOOR_H + 0.05, 0.04);
+  g.add(lintel);
+
+  const portalMat = new THREE.MeshBasicMaterial({ color: "#04050a" });
+  portalMat.fog = false;
+  const portal = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, DOOR_H), portalMat);
+  portal.position.set(0, DOOR_H / 2, -0.06);
+  g.add(portal);
+
+  const label = makeLabel(door.label, "walk through", { accent, height: 0.42 });
+  label.position.set(0, DOOR_H + 0.6, 0.1);
+  g.add(label);
+
+  const strip = new THREE.Mesh(
+    new THREE.PlaneGeometry(DOOR_W, 0.5),
+    new THREE.MeshBasicMaterial({
+      color: new THREE.Color(accent),
+      transparent: true,
+      opacity: 0.28,
+    }),
+  );
+  strip.rotation.x = -Math.PI / 2;
+  strip.position.set(0, 0.015, 0.3);
+  g.add(strip);
+  return g;
+}
+
+function addShell(scene, halfX, halfZ, wallColor, doors = []) {
   const floorMat = new THREE.MeshStandardMaterial({
     map: floorTexture(),
     roughness: 0.9,
@@ -204,17 +272,18 @@ function addRoomShell(scene, halfX, halfZ, wallColor) {
     roughness: 0.95,
     side: THREE.FrontSide,
   });
-  const mkWall = (w, x, z, ry) => {
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(w, WALL_H), wallMat);
-    wall.position.set(x, WALL_H / 2, z);
-    wall.rotation.y = ry;
-    wall.receiveShadow = true;
-    scene.add(wall);
+  const byWall = {};
+  for (const d of doors) byWall[d.wall] = d;
+  const put = (wall, width, x, z, ry) => {
+    const g = wallGroup(width, wallMat, byWall[wall]);
+    g.position.set(x, 0, z);
+    g.rotation.y = ry;
+    scene.add(g);
   };
-  mkWall(halfX * 2, 0, -halfZ, 0); // north (faces +z)
-  mkWall(halfX * 2, 0, halfZ, Math.PI); // south
-  mkWall(halfZ * 2, -halfX, 0, Math.PI / 2); // west
-  mkWall(halfZ * 2, halfX, 0, -Math.PI / 2); // east
+  put("north", halfX * 2, 0, -halfZ, 0);
+  put("south", halfX * 2, 0, halfZ, Math.PI);
+  put("west", halfZ * 2, -halfX, 0, Math.PI / 2);
+  put("east", halfZ * 2, halfX, 0, -Math.PI / 2);
 
   const ceil = new THREE.Mesh(
     new THREE.PlaneGeometry(halfX * 2, halfZ * 2),
@@ -223,18 +292,6 @@ function addRoomShell(scene, halfX, halfZ, wallColor) {
   ceil.rotation.x = Math.PI / 2;
   ceil.position.y = WALL_H;
   scene.add(ceil);
-
-  // baseboard trim
-  const trimMat = new THREE.MeshStandardMaterial({ color: "#20232b" });
-  const trimGeo = new THREE.BoxGeometry(halfX * 2, 0.25, 0.08);
-  [
-    [0, -halfZ + 0.05, 0],
-    [0, halfZ - 0.05, 0],
-  ].forEach(([x, z]) => {
-    const t = new THREE.Mesh(trimGeo, trimMat);
-    t.position.set(x, 0.12, z);
-    scene.add(t);
-  });
 }
 
 function baseLighting(scene) {
@@ -278,213 +335,195 @@ export const ACCENTS = {
   vault: "#b8e69a",
 };
 
-// --- hall -----------------------------------------------------------------
+// --- location assembly ----------------------------------------------------
 
-export function buildHall() {
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#0e0f14");
-  scene.fog = new THREE.Fog("#0e0f14", 14, 34);
+function spawnAt(wall, halfX, halfZ) {
+  const IN = 1.7;
+  if (wall === "south") return { pos: new THREE.Vector3(0, 1.6, halfZ - IN), yaw: Math.PI };
+  if (wall === "north") return { pos: new THREE.Vector3(0, 1.6, -halfZ + IN), yaw: 0 };
+  if (wall === "east") return { pos: new THREE.Vector3(halfX - IN, 1.6, 0), yaw: -Math.PI / 2 };
+  return { pos: new THREE.Vector3(-halfX + IN, 1.6, 0), yaw: Math.PI / 2 };
+}
 
-  // the pedestal circle grows with the collection; the shell follows it
-  const R = Math.max(7.2, FAMILIES.length * 0.62);
-  const half = Math.max(12, R + 4.8);
-  addRoomShell(scene, half, half, "#343947");
-  baseLighting(scene);
+function doorCenter(wall, halfX, halfZ) {
+  if (wall === "north") return new THREE.Vector3(0, 1.6, -halfZ);
+  if (wall === "south") return new THREE.Vector3(0, 1.6, halfZ);
+  if (wall === "east") return new THREE.Vector3(halfX, 1.6, 0);
+  return new THREE.Vector3(-halfX, 1.6, 0);
+}
 
-  const interactables = [];
-  const spinners = [];
-  const colliders = [];
-  const animators = [];
-  const tickers = []; // specimens exposing userData.tick(dt) — live sims
-  const heroes = {}; // familyId → pedestal slot, so a hero can be swapped live
-
-  const n = FAMILIES.length;
-  FAMILIES.forEach((fam, i) => {
-    const ang = -Math.PI / 2 + (i / n) * Math.PI * 2;
-    const x = Math.cos(ang) * R;
-    const z = Math.sin(ang) * R;
-    const accent = ACCENTS[fam.id] || "#6fbf59";
-
-    const ped = pedestal(accent);
-    ped.group.position.set(x, 0, z);
-    scene.add(ped.group);
-    colliders.push({ x, z, r: 1.05 });
-
-    let specimen;
-    try {
-      const hero = fam.variations[fam.heroIndex] || fam.variations[0];
-      specimen = hero ? fam.make(hero) : new THREE.Group(); // e.g. an empty vault
-    } catch (e) {
-      console.error("hero build failed", fam.id, e);
-      specimen = new THREE.Group();
-    }
-    specimen.position.set(x, ped.topY, z);
-    scene.add(specimen);
-    heroes[fam.id] = { group: specimen, x, z, topY: ped.topY };
-    if (specimen.userData.growth) animators.push(specimen);
-    else if (specimen.userData.tick) tickers.push(specimen);
-    else if (fam.spin !== false) spinners.push(specimen);
-
-    spotOver(scene, x, ped.topY + 1.2, ped.topY + 1, 0xfff2df);
-
-    // placard, angled up, facing room center
-    const placard = makeLabel(fam.title, fam.subtitle, {
-      accent,
-      height: 0.46,
-    });
-    const inward = new THREE.Vector3(-x, 0, -z).normalize();
-    placard.position.set(x + inward.x * 0.75, 1.2, z + inward.z * 0.75);
-    placard.lookAt(0, 1.2, 0);
-    placard.rotateX(-0.18);
-    scene.add(placard);
-
-    interactables.push({
-      focus: new THREE.Vector3(x, ped.topY + 1, z),
-      enterId: fam.id,
-      title: fam.title,
-      ring: ped.ring,
-      familyId: fam.id,
-      variantIndex: fam.heroIndex,
-    });
-  });
-
-  // central hall title on the floor / marker
-  const title = makeLabel(
-    "The Algorithmic Beauty of Plants",
-    "walk up to a specimen · press E to enter",
-    { accent: "#9bd88a", height: 0.7, bg: "#0d0f14" },
-  );
-  title.position.set(0, 0.02, 0);
-  title.rotation.x = -Math.PI / 2;
-  title.scale.setScalar(1.4);
-  scene.add(title);
-
+function finishLocation(hall, scene, halfX, halfZ, parts) {
+  const doorways = hall.doors.map((d) => ({
+    wall: d.wall,
+    to: d.to,
+    label: d.label,
+    half: DOOR_W / 2 - 0.2,
+    at: doorCenter(d.wall, halfX, halfZ),
+    spawn: spawnAt(d.wall, halfX, halfZ),
+  }));
   return {
     scene,
-    spawn: { pos: new THREE.Vector3(0, 1.6, R + 2.4), yaw: Math.PI },
-    bounds: { minX: -half + 0.6, maxX: half - 0.6, minZ: -half + 0.6, maxZ: half - 0.6 },
-    colliders,
-    interactables,
-    spinners,
-    animators,
-    tickers,
-    heroes,
+    hallId: hall.id,
+    name: hall.title,
+    sub: parts.sub || (parts.interactables || []).length + " exhibits",
+    spawn: spawnAt(hall.entryWall, halfX, halfZ),
+    bounds: { minX: -halfX + 0.6, maxX: halfX - 0.6, minZ: -halfZ + 0.6, maxZ: halfZ - 0.6 },
+    walls: { north: -halfZ, south: halfZ, west: -halfX, east: halfX },
+    doorways,
+    colliders: parts.colliders || [],
+    interactables: parts.interactables || [],
+    animators: parts.animators || [],
+    tickers: parts.tickers || [],
   };
 }
 
-// --- family room ----------------------------------------------------------
-
-export function buildRoom(family) {
-  if (family.kind === "breeder") return buildBreederRoom(family);
-  if (family.kind === "gagallery") return buildGenerationsRoom(family);
-  if (family.kind === "vault") {
-    syncVaultVariations(family);
-    if (!family.variations.length) return buildEmptyVaultRoom(family);
-    return buildGridRoom(family);
+export function buildLocation(hall) {
+  if (hall.kind === "greenhouse") return buildBreederRoom(hall);
+  if (hall.kind === "generations") return buildGenerationsRoom(hall);
+  if (hall.kind === "vault") {
+    syncVaultVariations(hall.family);
+    const exhibits = hall.family.variations.map((_, vi) => ({ family: hall.family, vi }));
+    return buildGallery(hall, exhibits, {
+      emptySign: [
+        "The vault is empty",
+        "breed a plant in the Greenhouse · preserve it at its vault pedestal",
+      ],
+    });
   }
-  return buildGridRoom(family);
+  return buildGallery(hall, hall.exhibits);
 }
 
-function buildGridRoom(family) {
+// --- gallery ---------------------------------------------------------------
+// The hall's long axis follows the entry direction: you step in at one end
+// and exhibits fill pedestal pairs along both side walls in list order,
+// advancing toward the far end. The hall stretches to fit the list.
+
+// inward unit vector of each entry wall, as [x, z]
+const INWARD = { south: [0, -1], north: [0, 1], west: [1, 0], east: [-1, 0] };
+
+function buildGallery(hall, exhibits, opts = {}) {
   const scene = new THREE.Scene();
-  const accent = ACCENTS[family.id] || "#6fbf59";
-  // subtle per-room mood: tint the background/fog toward the family accent
+  const accent = hall.accent;
   const bg = new THREE.Color("#0c0d11").lerp(new THREE.Color(accent), 0.07);
   scene.background = bg;
-
-  const items = family.variations;
-  const cols = Math.min(3, items.length);
-  const rows = Math.ceil(items.length / cols);
-  const spacingX = 4.2;
-  const spacingZ = 4.6;
-  const halfX = Math.max(7, (cols * spacingX) / 2 + 2.5);
-  const halfZ = Math.max(8, (rows * spacingZ) / 2 + 4);
-
   scene.fog = new THREE.Fog(bg, 16, 40);
-  addRoomShell(scene, halfX, halfZ, "#2c313d");
+
+  const rows = Math.max(1, Math.ceil(exhibits.length / 2));
+  const breadthHalf = hall.width / 2;
+  const depthHalf = Math.max(5.5, (rows * SPACING + END_PAD * 2) / 2);
+  const F = INWARD[hall.entryWall] || INWARD.south; // hall axis, entry → far end
+  const R = [-F[1], F[0]]; // right hand of F
+  const ew = F[0] !== 0;
+  const halfX = ew ? depthHalf : breadthHalf;
+  const halfZ = ew ? breadthHalf : depthHalf;
+  // local → world: lx across the aisle, ld along it (entry end negative)
+  const at = (lx, ld) => ({ x: R[0] * lx + F[0] * ld, z: R[1] * lx + F[1] * ld });
+
+  addShell(scene, halfX, halfZ, "#2c313d", hall.doors);
   baseLighting(scene);
   scene.add(new THREE.HemisphereLight(new THREE.Color(accent), 0x000000, 0.16));
 
   const interactables = [];
-  const spinners = [];
   const colliders = [];
   const animators = [];
   const tickers = [];
 
-  const gridW = (cols - 1) * spacingX;
-  const gridD = (rows - 1) * spacingZ;
-  items.forEach((v, i) => {
-    const cx = i % cols;
-    const cz = Math.floor(i / cols);
-    const x = cx * spacingX - gridW / 2;
-    const z = cz * spacingZ - gridD / 2 - 1.2;
+  exhibits.forEach((ex, i) => {
+    const side = i % 2 ? 1 : -1;
+    const row = Math.floor(i / 2);
+    const p = at(side * (breadthHalf - 2.1), (row - (rows - 1) / 2) * SPACING);
+    const v = ex.family.variations[ex.vi];
+    // aisle-facing yaw for this side
+    const yaw = Math.atan2(-side * R[0], -side * R[1]);
 
     const ped = pedestal(accent);
-    ped.group.position.set(x, 0, z);
+    ped.group.position.set(p.x, 0, p.z);
     scene.add(ped.group);
-    colliders.push({ x, z, r: 1.0 });
+    colliders.push({ x: p.x, z: p.z, r: 1.0 });
 
     let specimen;
     try {
-      specimen = family.make(v);
+      specimen = ex.family.make(v);
     } catch (e) {
-      console.error("variation build failed", family.id, v.name, e);
+      console.error("exhibit build failed", ex.family.id, v && v.name, e);
       specimen = new THREE.Group();
     }
-    specimen.position.set(x, ped.topY, z);
+    specimen.position.set(p.x, ped.topY, p.z);
+    specimen.rotation.y = yaw;
     scene.add(specimen);
     if (specimen.userData.growth) animators.push(specimen);
     else if (specimen.userData.tick) tickers.push(specimen);
-    else if (family.spin !== false) spinners.push(specimen);
 
-    spotOver(scene, x, ped.topY + 1.1, ped.topY + 0.9, 0xfff2df);
+    spotOver(scene, p.x, ped.topY + 1.1, ped.topY + 0.9, 0xfff2df);
 
     const placard = makeLabel(v.name, v.note || "", { accent, height: 0.4 });
-    placard.position.set(x, 1.16, z + 0.85);
+    placard.position.set(p.x - side * R[0] * 0.9, 1.16, p.z - side * R[1] * 0.9);
+    placard.rotation.y = yaw;
     placard.rotateX(-0.16);
     scene.add(placard);
 
     interactables.push({
-      focus: new THREE.Vector3(x, ped.topY + 0.9, z),
-      enterId: null,
+      focus: new THREE.Vector3(p.x, ped.topY + 0.9, p.z),
       title: v.name,
       ring: ped.ring,
-      familyId: family.id,
-      variantIndex: i,
+      familyId: ex.family.id,
+      variantIndex: ex.vi,
     });
   });
 
-  // title banner on the north wall
-  const banner = makeLabel(family.title, family.subtitle, {
+  // far-wall dressing faces back down the hall toward the entry
+  const farYaw = Math.atan2(-F[0], -F[1]);
+  const farAt = (ld, y) => {
+    const p = at(0, ld);
+    return new THREE.Vector3(p.x, y, p.z);
+  };
+
+  if (!exhibits.length) {
+    spotOver(scene, 0, 2.2, 0.5, 0xfff2df, 40); // an empty hall still gets a pool of light
+    if (opts.emptySign) {
+      const sign = makeLabel(opts.emptySign[0], opts.emptySign[1], {
+        accent,
+        height: 0.9,
+        bg: "#0d0f14",
+      });
+      sign.position.copy(farAt(depthHalf - 0.06, 2.6));
+      sign.rotation.y = farYaw;
+      sign.scale.setScalar(1.6);
+      scene.add(sign);
+    }
+  }
+
+  // hall title, high on the far wall (clear of any door label)
+  const banner = makeLabel(hall.title, hall.subtitle, {
     accent,
-    height: 1.0,
+    height: 0.9,
     bg: "#0d0f14",
   });
-  banner.position.set(0, 3.4, -halfZ + 0.06);
-  banner.scale.setScalar(2.2);
+  banner.position.copy(farAt(depthHalf - 0.05, 5.3));
+  banner.rotation.y = farYaw;
+  banner.scale.setScalar(1.5);
   scene.add(banner);
 
-  // exit marker near spawn
-  const exit = makeLabel("← EXIT TO HALL", "press E or Esc", {
-    accent: "#ff9d6f",
-    height: 0.5,
-    bg: "#0d0f14",
-  });
-  exit.position.set(0, 1.5, halfZ - 0.1);
-  exit.rotation.y = Math.PI;
-  scene.add(exit);
+  // entrance-style floor plaque
+  if (hall.plaque) {
+    const title = makeLabel(hall.museumTitle, hall.plaque, {
+      accent,
+      height: 0.7,
+      bg: "#0d0f14",
+    });
+    title.position.set(0, 0.02, 0);
+    title.rotation.x = -Math.PI / 2;
+    title.rotateZ(Math.atan2(F[0], -F[1]));
+    title.scale.setScalar(1.4);
+    scene.add(title);
+  }
 
-  return {
-    scene,
-    spawn: { pos: new THREE.Vector3(0, 1.6, halfZ - 2), yaw: Math.PI },
-    bounds: { minX: -halfX + 0.6, maxX: halfX - 0.6, minZ: -halfZ + 0.6, maxZ: halfZ - 0.6 },
+  return finishLocation(hall, scene, halfX, halfZ, {
     colliders,
     interactables,
-    spinners,
     animators,
     tickers,
-    exit: true,
-  };
+  });
 }
 
 // --- evolution greenhouse -------------------------------------------------
@@ -492,16 +531,17 @@ function buildGridRoom(family) {
 // to restart the lineage. Selecting an offspring rebuilds the exhibits in
 // place; the room's scene is cached by main.js, so state lives here.
 
-function buildBreederRoom(family) {
+function buildBreederRoom(hall) {
+  const family = hall.family;
   const scene = new THREE.Scene();
-  const accent = ACCENTS[family.id] || "#d98bff";
+  const accent = hall.accent;
   const bg = new THREE.Color("#0c0d11").lerp(new THREE.Color(accent), 0.07);
   scene.background = bg;
   scene.fog = new THREE.Fog(bg, 16, 40);
 
   const halfX = 8;
   const halfZ = 8;
-  addRoomShell(scene, halfX, halfZ, "#2c313d");
+  addShell(scene, halfX, halfZ, "#2c313d", hall.doors);
   baseLighting(scene);
   scene.add(new THREE.HemisphereLight(new THREE.Color(accent), 0x000000, 0.16));
 
@@ -578,13 +618,9 @@ function buildBreederRoom(family) {
     scene.add(genPlaque);
   };
 
-  const announce = () =>
-    document.dispatchEvent(new CustomEvent("hero-changed", { detail: { id: family.id } }));
-
   slots.forEach((slot, idx) => {
     const it = {
       focus: new THREE.Vector3(slot.x, slot.topY + 0.9, slot.z),
-      enterId: null,
       title: "",
       ring: slot.ring,
       familyId: family.id,
@@ -601,7 +637,6 @@ function buildBreederRoom(family) {
       it.action = () => {
         selectOffspring(idx - 1);
         rebuildExhibits();
-        announce();
       };
     }
     interactables.push(it);
@@ -627,7 +662,6 @@ function buildBreederRoom(family) {
   scene.add(wildPlacard);
   interactables.push({
     focus: new THREE.Vector3(wild.x, wild.topY + 0.4, wild.z),
-    enterId: null,
     title: "Wild Seed",
     ring: wild.ring,
     familyId: null,
@@ -635,7 +669,6 @@ function buildBreederRoom(family) {
     action: () => {
       reseedLineage();
       rebuildExhibits();
-      announce();
     },
   });
 
@@ -662,15 +695,12 @@ function buildBreederRoom(family) {
   scene.add(depPlacard);
   interactables.push({
     focus: new THREE.Vector3(dep.x, dep.topY + 0.4, dep.z),
-    enterId: null,
     title: "Seed Vault",
     ring: dep.ring,
     familyId: null,
     actionLabel: "preserve the parent",
     action: () => {
       const n = vaultPlant(getParentGenome(), "Greenhouse · Gen " + getGeneration());
-      const vaultFam = FAMILIES.find((f) => f.id === "vault");
-      if (vaultFam) syncVaultVariations(vaultFam); // hall hero reads variations
       scene.remove(depPlacard);
       disposeObject(depPlacard);
       depPlacard = makeLabel("Seed Vault", n + " preserved", { accent: "#b8e69a", height: 0.36 });
@@ -678,13 +708,12 @@ function buildBreederRoom(family) {
       depPlacard.rotateX(-0.16);
       scene.add(depPlacard);
       document.dispatchEvent(new CustomEvent("room-stale", { detail: { id: "vault" } }));
-      document.dispatchEvent(new CustomEvent("hero-changed", { detail: { id: "vault" } }));
     },
   });
 
   rebuildExhibits();
 
-  const banner = makeLabel(family.title, family.subtitle, {
+  const banner = makeLabel(hall.title, hall.subtitle, {
     accent,
     height: 1.0,
     bg: "#0d0f14",
@@ -693,26 +722,11 @@ function buildBreederRoom(family) {
   banner.scale.setScalar(2.0);
   scene.add(banner);
 
-  const exit = makeLabel("← EXIT TO HALL", "press Backspace", {
-    accent: "#ff9d6f",
-    height: 0.5,
-    bg: "#0d0f14",
-  });
-  exit.position.set(0, 1.5, halfZ - 0.1);
-  exit.rotation.y = Math.PI;
-  scene.add(exit);
-
-  return {
-    scene,
-    spawn: { pos: new THREE.Vector3(0, 1.6, halfZ - 1.8), yaw: Math.PI },
-    bounds: { minX: -halfX + 0.6, maxX: halfX - 0.6, minZ: -halfZ + 0.6, maxZ: halfZ - 0.6 },
+  return finishLocation(hall, scene, halfX, halfZ, {
     colliders,
     interactables,
-    spinners: [],
-    animators: [],
-    tickers: [],
-    exit: true,
-  };
+    sub: "artificial selection",
+  });
 }
 
 // --- hall of generations ---------------------------------------------------
@@ -722,16 +736,17 @@ function buildBreederRoom(family) {
 
 const CHECKPOINTS = [1, 2, 3, 5, 7, 10, 13, 16];
 
-function buildGenerationsRoom(family) {
+function buildGenerationsRoom(hall) {
+  const family = hall.family;
   const scene = new THREE.Scene();
-  const accent = ACCENTS[family.id] || "#e8c96f";
+  const accent = hall.accent;
   const bg = new THREE.Color("#0c0d11").lerp(new THREE.Color(accent), 0.07);
   scene.background = bg;
   scene.fog = new THREE.Fog(bg, 16, 44);
 
   const halfX = 7;
   const halfZ = 11;
-  addRoomShell(scene, halfX, halfZ, "#2c313d");
+  addShell(scene, halfX, halfZ, "#2c313d", hall.doors);
   baseLighting(scene);
   scene.add(new THREE.HemisphereLight(new THREE.Color(accent), 0x000000, 0.14));
 
@@ -753,7 +768,6 @@ function buildGenerationsRoom(family) {
     slots.push(slot);
     interactables.push({
       focus: new THREE.Vector3(x, ped.topY + 0.9, z),
-      enterId: null,
       title: "Generation " + CHECKPOINTS[i],
       ring: ped.ring,
       familyId: null, // set once a champion stands here
@@ -860,7 +874,6 @@ function buildGenerationsRoom(family) {
             saveChampions(value.champions);
             syncGenerationsVariations(family);
             setStatus("Run complete", "fittest: " + value.champions[value.champions.length - 1].fitness.toFixed(3));
-            document.dispatchEvent(new CustomEvent("hero-changed", { detail: { id: family.id } }));
             iter = null;
           }
         }
@@ -871,7 +884,6 @@ function buildGenerationsRoom(family) {
 
   interactables.push({
     focus: new THREE.Vector3(0, sow.topY + 0.4, 5.2),
-    enterId: null,
     title: "The Sower",
     ring: sow.ring,
     familyId: null,
@@ -885,73 +897,15 @@ function buildGenerationsRoom(family) {
     },
   });
 
-  const banner = makeLabel(family.title, family.subtitle, { accent, height: 1.0, bg: "#0d0f14" });
+  const banner = makeLabel(hall.title, hall.subtitle, { accent, height: 1.0, bg: "#0d0f14" });
   banner.position.set(0, 3.6, -halfZ + 0.06);
   banner.scale.setScalar(2.2);
   scene.add(banner);
 
-  const exit = makeLabel("← EXIT TO HALL", "press Backspace", {
-    accent: "#ff9d6f",
-    height: 0.5,
-    bg: "#0d0f14",
-  });
-  exit.position.set(0, 1.5, halfZ - 0.1);
-  exit.rotation.y = Math.PI;
-  scene.add(exit);
-
-  return {
-    scene,
-    spawn: { pos: new THREE.Vector3(0, 1.6, halfZ - 1.8), yaw: Math.PI },
-    bounds: { minX: -halfX + 0.6, maxX: halfX - 0.6, minZ: -halfZ + 0.6, maxZ: halfZ - 0.6 },
+  return finishLocation(hall, scene, halfX, halfZ, {
     colliders,
     interactables,
-    spinners: [],
-    animators: [],
     tickers,
-    exit: true,
-  };
-}
-
-// --- empty vault -----------------------------------------------------------
-
-function buildEmptyVaultRoom(family) {
-  const scene = new THREE.Scene();
-  const accent = ACCENTS[family.id] || "#b8e69a";
-  const bg = new THREE.Color("#0c0d11").lerp(new THREE.Color(accent), 0.07);
-  scene.background = bg;
-  scene.fog = new THREE.Fog(bg, 14, 34);
-
-  const half = 7;
-  addRoomShell(scene, half, half, "#2c313d");
-  baseLighting(scene);
-
-  const sign = makeLabel(
-    "The vault is empty",
-    "breed a plant in the Greenhouse · preserve it at the vault pedestal",
-    { accent, height: 0.9, bg: "#0d0f14" },
-  );
-  sign.position.set(0, 2.6, -half + 0.06);
-  sign.scale.setScalar(1.8);
-  scene.add(sign);
-
-  const exit = makeLabel("← EXIT TO HALL", "press E or Backspace", {
-    accent: "#ff9d6f",
-    height: 0.5,
-    bg: "#0d0f14",
+    sub: "selection without an eye",
   });
-  exit.position.set(0, 1.5, half - 0.1);
-  exit.rotation.y = Math.PI;
-  scene.add(exit);
-
-  return {
-    scene,
-    spawn: { pos: new THREE.Vector3(0, 1.6, half - 2), yaw: Math.PI },
-    bounds: { minX: -half + 0.6, maxX: half - 0.6, minZ: -half + 0.6, maxZ: half - 0.6 },
-    colliders: [],
-    interactables: [],
-    spinners: [],
-    animators: [],
-    tickers: [],
-    exit: true,
-  };
 }
