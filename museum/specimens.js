@@ -14,6 +14,8 @@ import { syncVariations } from "./genetics.js";
 import { colonize } from "./colonize.js";
 import { buildParticleLife } from "./particlelife.js";
 import { buildReactionPanel } from "./reaction.js";
+import { dla2, dla3 } from "./dla.js";
+import { buildLeniaPanel } from "./lenia.js";
 
 // --- helpers --------------------------------------------------------------
 
@@ -497,6 +499,56 @@ function buildColonization(v) {
   const group = new THREE.Group();
   group.add(mesh);
   const norm = normalize(group, v.height || 2.7);
+  return v.framed ? frameSpecimen(norm, v.frameStyle) : norm;
+}
+
+// Live Lenia panel; same wrapper shape as the reaction panels.
+function buildLenia(v) {
+  const { group, tick } = buildLeniaPanel(v);
+  const norm = normalize(group, v.height || 2.3);
+  const out = frameSpecimen(norm, { frame: "#5a7a86", ...v.frameStyle });
+  out.userData.tick = tick;
+  return out;
+}
+
+// DLA renderer: deposition order drives a base→tip color gradient.
+function buildDLA(v) {
+  const { cells, dims } = v.flat ? dla2(v) : dla3(v);
+  const n = cells.length / dims;
+  const cell = 0.05;
+  const geo =
+    dims === 3
+      ? new THREE.BoxGeometry(cell * 1.02, cell * 1.02, cell * 1.02)
+      : new THREE.BoxGeometry(cell * 0.92, cell * 0.92, cell * 0.4);
+  const mat = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.02 });
+  mat.emissive = new THREE.Color(v.glow || "#0a0a12");
+  mat.emissiveIntensity = 0.55;
+  const mesh = new THREE.InstancedMesh(geo, mat, n);
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3);
+  const baseC = new THREE.Color(v.baseColor || "#8f2f4f");
+  const tipC = new THREE.Color(v.tipColor || "#ffe8f0");
+  const m = new THREE.Matrix4();
+  const p = new THREE.Vector3();
+  const q = new THREE.Quaternion();
+  const s = new THREE.Vector3(1, 1, 1);
+  const col = new THREE.Color();
+  for (let k = 0; k < n; k++) {
+    if (dims === 3) {
+      p.set(cells[k * 3] * cell, cells[k * 3 + 1] * cell, cells[k * 3 + 2] * cell);
+    } else {
+      p.set(cells[k * 2] * cell, cells[k * 2 + 1] * cell, 0);
+    }
+    m.compose(p, q, s);
+    mesh.setMatrixAt(k, m);
+    col.copy(baseC).lerp(tipC, Math.pow(k / Math.max(n - 1, 1), 0.8));
+    mesh.setColorAt(k, col);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.castShadow = true;
+  const wrap = new THREE.Group();
+  wrap.add(mesh);
+  const norm = normalize(wrap, v.height || 2.4);
   return v.framed ? frameSpecimen(norm, v.frameStyle) : norm;
 }
 
@@ -1843,6 +1895,141 @@ export const FAMILIES = [
   },
 
   {
+    id: "lenia",
+    title: "Lenia",
+    subtitle: "Chan 2019 · Continuous Life",
+    blurb:
+      "Conway's Life with continuous states, continuous space, continuous time: a smooth ring kernel and one gaussian growth curve. Nothing in the update rule mentions creatures — and yet.",
+    make: buildLenia,
+    heroIndex: 0,
+    spin: false,
+    variations: [
+      {
+        name: "Orbium Broth",
+        note: "m=.15 · s=.017 · R=13",
+        m: 0.15,
+        s: 0.017,
+        R: 13,
+        seed: 7,
+        mid: "#0f8f7a",
+        hot: "#d9fff0",
+        height: 2.3,
+      },
+      {
+        name: "Wanderers",
+        note: "m=.25 · s=.03 · R=10",
+        m: 0.25,
+        s: 0.03,
+        R: 10,
+        seed: 11,
+        mid: "#8f6f0f",
+        hot: "#fff3c9",
+        bg: "#120d02",
+        height: 2.3,
+      },
+      {
+        name: "Reef",
+        note: "still growing at step 400",
+        m: 0.26,
+        s: 0.036,
+        R: 13,
+        seed: 3,
+        mid: "#8f2f5f",
+        hot: "#ffd9ec",
+        bg: "#12020a",
+        height: 2.3,
+      },
+      {
+        name: "Plates",
+        note: "m=.2 · s=.042 · R=10",
+        m: 0.2,
+        s: 0.042,
+        R: 10,
+        seed: 19,
+        mid: "#2f5f8f",
+        hot: "#d9ecff",
+        bg: "#02060f",
+        height: 2.3,
+      },
+      {
+        name: "Islands",
+        note: "m=.22 · s=.058 · R=8",
+        m: 0.22,
+        s: 0.058,
+        R: 8,
+        seed: 23,
+        mid: "#3f8f4f",
+        hot: "#defcd9",
+        bg: "#03120a",
+        height: 2.3,
+      },
+    ],
+  },
+
+  {
+    id: "dla",
+    title: "Diffusion-Limited Aggregation",
+    subtitle: "Witten–Sander 1981 · Fractal accretion",
+    blurb:
+      "Particles wander at random until they touch the cluster and freeze. Every branch shadows its neighbors, so the same physics grows coral, sea fans, frost, and electrodeposits.",
+    make: buildDLA,
+    heroIndex: 0,
+    spin: true,
+    variations: [
+      {
+        name: "Coral",
+        note: "3D · downward drift",
+        grid: 64,
+        particles: 2600,
+        bias: 0.16,
+        seed: 6,
+        baseColor: "#8f2f4f",
+        tipColor: "#ffe8f0",
+        height: 2.5,
+      },
+      {
+        name: "Sea Fan",
+        note: "3D · confined to a slab",
+        grid: 72,
+        particles: 2400,
+        bias: 0.14,
+        slab: 2,
+        seed: 14,
+        seedRadius: 1,
+        baseColor: "#b0691f",
+        tipColor: "#ffe9b8",
+        height: 2.6,
+      },
+      {
+        name: "Dendrite",
+        note: "2D · radial",
+        flat: true,
+        grid: 150,
+        particles: 3600,
+        seed: 9,
+        framed: true,
+        baseColor: "#1f4f8f",
+        tipColor: "#d9ecff",
+        height: 2.4,
+      },
+      {
+        name: "Frost",
+        note: "2D · creeping up the pane",
+        flat: true,
+        grid: 150,
+        seedMode: "bottom",
+        particles: 4200,
+        stickiness: 0.6,
+        seed: 3,
+        framed: true,
+        baseColor: "#3f6f8f",
+        tipColor: "#f0fbff",
+        height: 2.3,
+      },
+    ],
+  },
+
+  {
     id: "evolution",
     kind: "breeder",
     title: "Evolution Greenhouse",
@@ -1977,6 +2164,22 @@ const FAMILY_CONTROLS = {
       { path: "iterations", label: "Iterations", min: 1, max: 6, step: 1 },
       { path: "turtle.angle", label: "Angle °", min: 4, max: 60, step: 0.1 },
       { path: "turtle.droop", label: "Tropism", min: -0.08, max: 0.08, step: 0.002 },
+    ],
+  },
+  lenia: {
+    controls: [
+      { path: "m", label: "Growth center m", min: 0.05, max: 0.4, step: 0.002 },
+      { path: "s", label: "Growth width s", min: 0.008, max: 0.08, step: 0.001 },
+      { path: "steps", label: "Steps / frame", min: 1, max: 12, step: 1 },
+      { path: "seed", label: "Seed", min: 1, max: 99, step: 1 },
+    ],
+  },
+  dla: {
+    controls: (v) => [
+      { path: "particles", label: "Particles", min: 400, max: v.flat ? 8000 : 5000, step: 100 },
+      { path: "stickiness", label: "Stickiness", min: 0.1, max: 1, step: 0.05 },
+      ...(v.flat ? [] : [{ path: "bias", label: "Fall bias", min: 0, max: 0.35, step: 0.01 }]),
+      { path: "seed", label: "Seed", min: 1, max: 99, step: 1 },
     ],
   },
   reaction: {

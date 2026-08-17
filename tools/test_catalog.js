@@ -12,6 +12,7 @@ import {
   getGeneration,
   syncVariations,
 } from "../museum/genetics.js";
+import { exportSTL } from "../museum/exporters.js";
 
 let fails = 0;
 
@@ -60,6 +61,16 @@ for (const fam of FAMILIES) {
     console.log(`${bad ? "FAIL " : "OK   "} ticker ${fam.id}/${v.name} 120 frames, ${bad} non-finite`);
     if (bad) fails++;
   }
+}
+
+// STL export: a tree must yield a consistent binary STL
+{
+  const fam = familyById("trees3d");
+  const buf = exportSTL(fam.make(fam.variations[0]));
+  const nTri = buf ? new DataView(buf).getUint32(80, true) : 0;
+  const ok = buf && nTri > 100 && buf.byteLength === 84 + nTri * 50;
+  console.log(`${ok ? "OK   " : "FAIL "} stl export: ${nTri} triangles, ${buf ? buf.byteLength : 0} bytes`);
+  if (!ok) fails++;
 }
 
 // breed 30 generations; every offspring must build non-degenerate

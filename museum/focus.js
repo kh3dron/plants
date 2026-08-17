@@ -3,6 +3,7 @@
 // the specimen that rebuilds as you tweak. Owns its own renderer/scene.
 import * as THREE from "three";
 import { cloneVariant } from "./specimens.js";
+import { exportSTL, exportGLB, downloadBlob } from "./exporters.js";
 
 const el = {
   root: document.getElementById("focus"),
@@ -15,6 +16,8 @@ const el = {
   close: document.getElementById("focus-close"),
   copy: document.getElementById("focus-copy"),
   download: document.getElementById("focus-download"),
+  glb: document.getElementById("focus-glb"),
+  stl: document.getElementById("focus-stl"),
   reset: document.getElementById("focus-reset"),
   random: document.getElementById("focus-random"),
   toast: document.getElementById("focus-toast"),
@@ -444,6 +447,27 @@ el.download.addEventListener("click", () => {
   a.href = el.canvas.toDataURL("image/png");
   a.click();
   flash("image downloaded");
+});
+el.glb.addEventListener("click", async () => {
+  if (!obj) return;
+  try {
+    const glb = await exportGLB(obj);
+    downloadBlob(glb, `${family.id}-specimen.glb`, "model/gltf-binary");
+    flash("GLB downloaded");
+  } catch (e) {
+    console.error(e);
+    flash("GLB export failed");
+  }
+});
+el.stl.addEventListener("click", () => {
+  if (!obj) return;
+  const buf = exportSTL(obj);
+  if (!buf) {
+    flash("no surface to export (point cloud)");
+    return;
+  }
+  downloadBlob(buf, `${family.id}-specimen.stl`, "model/stl");
+  flash("STL downloaded");
 });
 el.reset.addEventListener("click", () => {
   controlValues = {};

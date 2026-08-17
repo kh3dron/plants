@@ -263,6 +263,8 @@ export const ACCENTS = {
   colonization: "#ffb56f",
   particlelife: "#ff8fb0",
   reaction: "#57e6b8",
+  dla: "#bfe8ff",
+  lenia: "#9fffe0",
 };
 
 // --- hall -----------------------------------------------------------------
