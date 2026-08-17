@@ -584,6 +584,7 @@ function animate() {
     const active = locked && !transitioning;
     if (active) {
       if (current.swarm) current.swarm.update(dt);
+      for (const t of current.tickers || []) t.userData.tick(dt);
       for (const s of current.spinners) s.rotation.y += dt * 0.22;
       if (current.animators && current.animators.length) {
         growthTime += dt;
@@ -633,6 +634,12 @@ window.__museum = {
     const it = current && current.interactables && current.interactables[i];
     if (it && it.action) it.action();
     return it ? it.title : null;
+  },
+  tick: (frames) => {
+    for (let i = 0; i < (frames || 60); i++) {
+      for (const t of (current && current.tickers) || []) t.userData.tick(1 / 60);
+      if (current && current.swarm) current.swarm.update(1 / 60);
+    }
   },
 };
 

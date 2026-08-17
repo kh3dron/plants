@@ -9,8 +9,10 @@ import {
   tokenizeParametric,
   makeRng,
 } from "./lsystem.js";
-import { interpret } from "./turtle.js";
+import { interpret, buildTubes } from "./turtle.js";
 import { syncVariations } from "./genetics.js";
+import { colonize } from "./colonize.js";
+import { buildParticleLife } from "./particlelife.js";
 
 // --- helpers --------------------------------------------------------------
 
@@ -460,6 +462,43 @@ function buildCellularLayers(v) {
   return normalize(group, v.height || 2.6);
 }
 
+// Space colonization tree/venation: the algorithm lives in colonize.js; this
+// wraps its segment list in the same tube mesh the turtle uses.
+function buildColonization(v) {
+  if (v.lsystem) return buildParametricTree(v);
+  const segments = colonize(v);
+
+  // keep the pipe-model trunk proportionate to the final height
+  let minY = Infinity;
+  let maxY = -Infinity;
+  let maxR = 0;
+  for (const s of segments) {
+    minY = Math.min(minY, s.p0.y, s.p1.y);
+    maxY = Math.max(maxY, s.p0.y, s.p1.y);
+    maxR = Math.max(maxR, s.r0, s.r1);
+  }
+  const cap = (v.radiusFrac || 0.03) * Math.max(maxY - minY, 1e-3);
+  if (maxR > cap) {
+    const k = cap / maxR;
+    for (const s of segments) {
+      s.r0 *= k;
+      s.r1 *= k;
+    }
+  }
+
+  const mesh = buildTubes(segments, {
+    radial: 6,
+    material: v.material || "bark",
+    trunkColor: new THREE.Color(v.trunkColor || "#5f4128"),
+    tipColor: new THREE.Color(v.tipColor || "#e8a45f"),
+    neonColor: new THREE.Color(v.neonColor || "#9dffb8"),
+  });
+  const group = new THREE.Group();
+  group.add(mesh);
+  const norm = normalize(group, v.height || 2.7);
+  return v.framed ? frameSpecimen(norm, v.frameStyle) : norm;
+}
+
 // Elementary cellular automata (Wolfram): one byte of rule, a row of cells,
 // time flowing downward. Live cells become a woven panel of glowing tiles.
 function buildElementaryCA(v) {
@@ -881,6 +920,138 @@ export const FAMILIES = [
         iterations: 6,
         turtle: tree3dTurtle(),
         height: 2.7,
+      },
+      {
+        name: "Weeping Honda",
+        note: "gravitropism · e=0.3",
+        axiom: "A(1,1)",
+        params: { r1: 0.92, r2: 0.65, a0: 40, a2: 40, d: 137.5, wr: 0.707 },
+        rules: [
+          {
+            predecessor: "A(l,w)",
+            successor: "!(w)F(l)[&(a0)B(l*r2,w*wr)]/(d)A(l*r1,w*wr)",
+          },
+          {
+            predecessor: "B(l,w)",
+            successor: "!(w)F(l)[-(a2)C(l*r2,w*wr)]C(l*r1,w*wr)",
+          },
+          {
+            predecessor: "C(l,w)",
+            successor: "!(w)F(l)[+(a2)B(l*r2,w*wr)]B(l*r1,w*wr)",
+          },
+        ],
+        iterations: 8,
+        turtle: tree3dTurtle({ droop: 0.3 }),
+        height: 2.6,
+      },
+    ],
+  },
+
+  {
+    id: "colonization",
+    title: "Space Colonization",
+    subtitle: "Runions 2007 · The other way to grow a tree",
+    blurb:
+      "No grammar at all. Scatter attraction points in a volume; branches grow toward the nearest ones and consume them. Structure emerges from competition for space — compare with the Honda tree grown from three rewrite rules.",
+    make: buildColonization,
+    heroIndex: 0,
+    spin: true,
+    variations: [
+      {
+        name: "Open Crown",
+        note: "380 attractors",
+        crown: "sphere",
+        rx: 1.15,
+        cy: 1.7,
+        attractors: 380,
+        influence: 1.5,
+        kill: 0.2,
+        step: 0.11,
+        seed: 12,
+        height: 2.8,
+      },
+      {
+        name: "Dense Crown",
+        note: "900 attractors · tight kill radius",
+        crown: "sphere",
+        rx: 1.05,
+        cy: 1.6,
+        attractors: 900,
+        influence: 0.8,
+        kill: 0.11,
+        step: 0.07,
+        seed: 5,
+        height: 2.8,
+      },
+      {
+        name: "Columnar",
+        note: "tall ellipsoid crown",
+        crown: "sphere",
+        rx: 0.55,
+        ry: 1.5,
+        cy: 1.9,
+        attractors: 520,
+        influence: 1.2,
+        kill: 0.16,
+        step: 0.09,
+        seed: 21,
+        height: 2.9,
+      },
+      {
+        name: "Windswept",
+        note: "crown offset to leeward",
+        crown: "sphere",
+        rx: 1.0,
+        cx: 0.85,
+        cy: 1.75,
+        attractors: 420,
+        influence: 1.4,
+        kill: 0.18,
+        step: 0.1,
+        seed: 33,
+        height: 2.6,
+      },
+      {
+        name: "Honda (for comparison)",
+        note: "same silhouette, three rules",
+        lsystem: true,
+        axiom: "A(1,1)",
+        params: { r1: 0.9, r2: 0.6, a0: 45, a2: 45, d: 137.5, wr: 0.707 },
+        rules: [
+          {
+            predecessor: "A(l,w)",
+            successor: "!(w)F(l)[&(a0)B(l*r2,w*wr)]/(d)A(l*r1,w*wr)",
+          },
+          {
+            predecessor: "B(l,w)",
+            successor: "!(w)F(l)[-(a2)C(l*r2,w*wr)]C(l*r1,w*wr)",
+          },
+          {
+            predecessor: "C(l,w)",
+            successor: "!(w)F(l)[+(a2)B(l*r2,w*wr)]B(l*r1,w*wr)",
+          },
+        ],
+        iterations: 7,
+        turtle: tree3dTurtle(),
+        height: 2.8,
+      },
+      {
+        name: "Leaf Venation",
+        note: "same algorithm, flat",
+        crown: "leaf",
+        length: 2.3,
+        width2d: 0.8,
+        attractors: 750,
+        influence: 1.1,
+        kill: 0.07,
+        step: 0.05,
+        tipRadius: 0.006,
+        pipeExp: 2.0,
+        seed: 3,
+        trunkColor: "#2f6b2a",
+        tipColor: "#a8e070",
+        framed: true,
+        height: 2.4,
       },
     ],
   },
@@ -1453,6 +1624,66 @@ export const FAMILIES = [
   },
 
   {
+    id: "particlelife",
+    title: "Particle Life",
+    subtitle: "Interlude · Life-like, not alive",
+    blurb:
+      "A few hundred particles and one asymmetric attraction matrix. Cells, chasers and orbits emerge — nothing in the rules mentions any of them. Every vitrine is a different random matrix.",
+    make: buildParticleLife,
+    heroIndex: 0,
+    spin: false,
+    variations: [
+      {
+        name: "Cells",
+        note: "5 species · asymmetric",
+        seed: 7,
+        species: 5,
+        count: 450,
+        height: 2.3,
+      },
+      {
+        name: "Chasers",
+        note: "pursuit from asymmetry",
+        seed: 21,
+        species: 4,
+        count: 420,
+        force: 1.7,
+        friction: 2.2,
+        height: 2.3,
+      },
+      {
+        name: "Crystal",
+        note: "symmetric matrix · lattices",
+        seed: 4,
+        species: 5,
+        count: 500,
+        symmetric: true,
+        friction: 3.4,
+        height: 2.3,
+      },
+      {
+        name: "Soup",
+        note: "6 species · long reach",
+        seed: 13,
+        species: 6,
+        count: 600,
+        rMax: 0.45,
+        height: 2.3,
+      },
+      {
+        name: "Comets",
+        note: "low friction",
+        seed: 29,
+        species: 3,
+        count: 380,
+        friction: 1.1,
+        force: 1.0,
+        height: 2.3,
+      },
+    ],
+  },
+
+  {
     id: "evolution",
     kind: "breeder",
     title: "Evolution Greenhouse",
@@ -1507,11 +1738,13 @@ const FAMILY_CONTROLS = {
     controls: [
       { path: "iterations", label: "Iterations", min: 1, max: 7, step: 1 },
       { path: "turtle.angle", label: "Angle °", min: 2, max: 45, step: 0.1 },
+      { path: "turtle.droop", label: "Tropism", min: -0.08, max: 0.08, step: 0.002 },
     ],
   },
   trees3d: {
     controls: (v) => [
       { path: "iterations", label: "Iterations", min: 1, max: 8, step: 1 },
+      { path: "turtle.droop", label: "Tropism", min: -0.5, max: 0.5, step: 0.01 },
       ...Object.keys(v.params || {}).map((k) => paramCtrl(k, v.params[k])),
     ],
   },
@@ -1524,6 +1757,7 @@ const FAMILY_CONTROLS = {
     controls: [
       { path: "iterations", label: "Iterations", min: 1, max: 12, step: 1 },
       { path: "turtle.angle", label: "Angle °", min: 5, max: 60, step: 0.5 },
+      { path: "turtle.droop", label: "Tropism", min: -0.08, max: 0.08, step: 0.002 },
     ],
   },
   phyllotaxis: {
@@ -1581,7 +1815,30 @@ const FAMILY_CONTROLS = {
     controls: [
       { path: "iterations", label: "Iterations", min: 1, max: 6, step: 1 },
       { path: "turtle.angle", label: "Angle °", min: 4, max: 60, step: 0.1 },
+      { path: "turtle.droop", label: "Tropism", min: -0.08, max: 0.08, step: 0.002 },
     ],
+  },
+  particlelife: {
+    controls: [
+      { path: "count", label: "Particles", min: 100, max: 900, step: 10 },
+      { path: "species", label: "Species", min: 2, max: 8, step: 1 },
+      { path: "force", label: "Force", min: 0.2, max: 3, step: 0.05 },
+      { path: "friction", label: "Friction", min: 0.5, max: 6, step: 0.1 },
+      { path: "rMax", label: "Reach", min: 0.15, max: 0.6, step: 0.01 },
+      { path: "seed", label: "Matrix seed", min: 1, max: 99, step: 1 },
+    ],
+  },
+  colonization: {
+    controls: (v) =>
+      v.lsystem
+        ? [{ path: "iterations", label: "Iterations", min: 1, max: 8, step: 1 }]
+        : [
+            { path: "attractors", label: "Attractors", min: 100, max: 1500, step: 20 },
+            { path: "influence", label: "Influence radius", min: 0.3, max: 2.5, step: 0.05 },
+            { path: "kill", label: "Kill radius", min: 0.04, max: 0.4, step: 0.01 },
+            { path: "step", label: "Step", min: 0.03, max: 0.2, step: 0.005 },
+            { path: "seed", label: "Seed", min: 1, max: 99, step: 1 },
+          ],
   },
 };
 

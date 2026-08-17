@@ -24,6 +24,7 @@ export function interpret(tokens, opts = {}) {
     tipColor: new THREE.Color("#5fa64a"),
     neonColor: new THREE.Color("#78ffb0"),
     angle: 25,
+    droop: 0, // signed tropism: + bends toward gravity, - toward the light
     organs: {},
     ...opts,
   };
@@ -41,6 +42,22 @@ export function interpret(tokens, opts = {}) {
   const segments = []; // { p0, p1, r0, r1 }
   const organPlacements = {}; // type -> [{ pos, quat, size }]
 
+  // ABOP eq. 2.1: before each segment, rotate the frame toward the tropism
+  // vector T by droop * |H x T| * length. T is ±Y; the torque axis H x T
+  // swings H toward T, and mag vanishes as H aligns with it.
+  const tropAxis = new THREE.Vector3();
+  const T = new THREE.Vector3(0, -Math.sign(o.droop || 0), 0);
+  const bend = (len) => {
+    tropAxis.crossVectors(H, T);
+    const mag = tropAxis.length();
+    if (mag < 1e-6) return;
+    tropAxis.normalize();
+    const ang = Math.abs(o.droop) * mag * len;
+    H.applyAxisAngle(tropAxis, ang).normalize();
+    R.applyAxisAngle(tropAxis, ang).normalize();
+    U.applyAxisAngle(tropAxis, ang).normalize();
+  };
+
   const pushOrgan = (spec) => {
     const list = (organPlacements[spec.type] = organPlacements[spec.type] || []);
     const quat = new THREE.Quaternion().setFromUnitVectors(Y, H.clone().normalize());
@@ -54,6 +71,7 @@ export function interpret(tokens, opts = {}) {
       case "F":
       case "G": {
         const len = (param != null ? param : o.step) * o.lengthScale;
+        if (o.droop) bend(len);
         const p0 = pos.clone();
         pos.addScaledVector(H, len);
         if (o.mode === "parametric") {
@@ -151,7 +169,7 @@ export function interpret(tokens, opts = {}) {
   return group;
 }
 
-function buildTubes(segments, o) {
+export function buildTubes(segments, o) {
   let maxR = 0;
   for (const s of segments) maxR = Math.max(maxR, s.r0, s.r1);
   maxR = maxR || 1;

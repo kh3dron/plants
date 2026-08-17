@@ -20,7 +20,13 @@ const FOUNDERS = [
 ];
 
 function cloneGenome(g) {
-  return { axiom: g.axiom, rules: { ...g.rules }, iterations: g.iterations, angle: g.angle };
+  return {
+    axiom: g.axiom,
+    rules: { ...g.rules },
+    iterations: g.iterations,
+    angle: g.angle,
+    droop: g.droop || 0,
+  };
 }
 
 function clamp(x, a, b) {
@@ -146,6 +152,16 @@ const MUTATIONS = [
       return "n=" + n;
     },
   },
+  {
+    w: 0.8,
+    fn: (g, rnd) => {
+      // tropism drift: lean into gravity or away from it
+      const d = (rnd() + rnd() - 1) * 0.05;
+      if (Math.abs(d) < 0.004) return null;
+      g.droop = clamp(+((g.droop || 0) + d).toFixed(3), -0.08, 0.08);
+      return g.droop >= 0 ? "droops " + g.droop : "reaches " + -g.droop;
+    },
+  },
 ];
 
 function pickMutation(rnd) {
@@ -237,7 +253,7 @@ export function reseedLineage(rnd = Math.random) {
 
 // --- genome → catalog variation -------------------------------------------
 
-const breederTurtle = (angle) => ({
+const breederTurtle = (angle, droop) => ({
   material: "bark",
   radial: 6,
   step: 1,
@@ -245,6 +261,7 @@ const breederTurtle = (angle) => ({
   taper: 0.72,
   radiusFrac: 0.02, // trunk = 2% of plant height, whatever the string length
   angle,
+  droop: droop || 0,
   trunkColor: new THREE.Color("#7a5a3a"),
   tipColor: new THREE.Color("#e2a3ff"),
 });
@@ -256,7 +273,7 @@ export function genomeToVariation(genome, name, note) {
     axiom: genome.axiom,
     rules: { ...genome.rules },
     iterations: genome.iterations,
-    turtle: breederTurtle(genome.angle),
+    turtle: breederTurtle(genome.angle, genome.droop),
     height: 2.5,
   };
 }

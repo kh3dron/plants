@@ -260,6 +260,8 @@ export const ACCENTS = {
   cells: "#9ad86a",
   automata: "#5ad7ff",
   evolution: "#d98bff",
+  colonization: "#ffb56f",
+  particlelife: "#ff8fb0",
 };
 
 // --- hall -----------------------------------------------------------------
@@ -277,6 +279,7 @@ export function buildHall() {
   const spinners = [];
   const colliders = [];
   const animators = [];
+  const tickers = []; // specimens exposing userData.tick(dt) — live sims
   const heroes = {}; // familyId → pedestal slot, so a hero can be swapped live
 
   const R = 7.2;
@@ -303,6 +306,7 @@ export function buildHall() {
     scene.add(specimen);
     heroes[fam.id] = { group: specimen, x, z, topY: ped.topY };
     if (specimen.userData.growth) animators.push(specimen);
+    else if (specimen.userData.tick) tickers.push(specimen);
     else if (fam.spin !== false) spinners.push(specimen);
 
     spotOver(scene, x, ped.topY + 1.2, ped.topY + 1, 0xfff2df);
@@ -347,6 +351,7 @@ export function buildHall() {
     interactables,
     spinners,
     animators,
+    tickers,
     heroes,
   };
 }
@@ -378,6 +383,7 @@ export function buildRoom(family) {
   const spinners = [];
   const colliders = [];
   const animators = [];
+  const tickers = [];
 
   const gridW = (cols - 1) * spacingX;
   const gridD = (rows - 1) * spacingZ;
@@ -402,6 +408,7 @@ export function buildRoom(family) {
     specimen.position.set(x, ped.topY, z);
     scene.add(specimen);
     if (specimen.userData.growth) animators.push(specimen);
+    else if (specimen.userData.tick) tickers.push(specimen);
     else if (family.spin !== false) spinners.push(specimen);
 
     spotOver(scene, x, ped.topY + 1.1, ped.topY + 0.9, 0xfff2df);
@@ -449,6 +456,7 @@ export function buildRoom(family) {
     interactables,
     spinners,
     animators,
+    tickers,
     exit: true,
   };
 }
@@ -632,6 +640,7 @@ function buildBreederRoom(family) {
     interactables,
     spinners: [],
     animators: [],
+    tickers: [],
     exit: true,
   };
 }

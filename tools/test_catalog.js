@@ -45,6 +45,23 @@ for (const fam of FAMILIES) {
   }
 }
 
+// live sims: tick every ticker specimen 120 frames, positions must stay finite
+for (const fam of FAMILIES) {
+  for (const v of fam.variations) {
+    const obj = fam.make(v);
+    if (!obj.userData.tick) continue;
+    for (let f = 0; f < 120; f++) obj.userData.tick(1 / 60);
+    let bad = 0;
+    obj.traverse((n) => {
+      const attr = n.geometry && n.geometry.getAttribute && n.geometry.getAttribute("position");
+      if (!attr) return;
+      for (let i = 0; i < attr.array.length; i++) if (!Number.isFinite(attr.array[i])) bad++;
+    });
+    console.log(`${bad ? "FAIL " : "OK   "} ticker ${fam.id}/${v.name} 120 frames, ${bad} non-finite`);
+    if (bad) fails++;
+  }
+}
+
 // breed 30 generations; every offspring must build non-degenerate
 const evo = familyById("evolution");
 const t0 = performance.now();
