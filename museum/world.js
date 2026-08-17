@@ -6,11 +6,20 @@ import * as THREE from "three";
 import { FAMILIES } from "./specimens.js";
 import {
   getGeneration,
+  getParentGenome,
   rerollBrood,
   selectOffspring,
   reseedLineage,
   syncVariations,
 } from "./genetics.js";
+import {
+  evolve,
+  loadChampions,
+  saveChampions,
+  championVariation,
+  syncGenerationsVariations,
+} from "./evolve.js";
+import { vaultPlant, vaultList, syncVaultVariations } from "./vault.js";
 
 const WALL_H = 6.2;
 
@@ -265,6 +274,8 @@ export const ACCENTS = {
   reaction: "#57e6b8",
   dla: "#bfe8ff",
   lenia: "#9fffe0",
+  generations: "#e8c96f",
+  vault: "#b8e69a",
 };
 
 // --- hall -----------------------------------------------------------------
@@ -301,7 +312,8 @@ export function buildHall() {
 
     let specimen;
     try {
-      specimen = fam.make(fam.variations[fam.heroIndex]);
+      const hero = fam.variations[fam.heroIndex] || fam.variations[0];
+      specimen = hero ? fam.make(hero) : new THREE.Group(); // e.g. an empty vault
     } catch (e) {
       console.error("hero build failed", fam.id, e);
       specimen = new THREE.Group();
@@ -364,6 +376,16 @@ export function buildHall() {
 
 export function buildRoom(family) {
   if (family.kind === "breeder") return buildBreederRoom(family);
+  if (family.kind === "gagallery") return buildGenerationsRoom(family);
+  if (family.kind === "vault") {
+    syncVaultVariations(family);
+    if (!family.variations.length) return buildEmptyVaultRoom(family);
+    return buildGridRoom(family);
+  }
+  return buildGridRoom(family);
+}
+
+function buildGridRoom(family) {
   const scene = new THREE.Scene();
   const accent = ACCENTS[family.id] || "#6fbf59";
   // subtle per-room mood: tint the background/fog toward the family accent
@@ -556,7 +578,8 @@ function buildBreederRoom(family) {
     scene.add(genPlaque);
   };
 
-  const announce = () => document.dispatchEvent(new CustomEvent("lineage-changed"));
+  const announce = () =>
+    document.dispatchEvent(new CustomEvent("hero-changed", { detail: { id: family.id } }));
 
   slots.forEach((slot, idx) => {
     const it = {
@@ -616,6 +639,49 @@ function buildBreederRoom(family) {
     },
   });
 
+  // seed vault deposit: preserve the current parent for the Vault room
+  const dep = addSlot(-(halfX - 2.4), halfZ - 3.2, false);
+  const depGem = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.2, 0),
+    new THREE.MeshStandardMaterial({
+      color: "#2c3a24",
+      roughness: 0.35,
+      emissive: new THREE.Color("#b8e69a"),
+      emissiveIntensity: 0.45,
+    }),
+  );
+  depGem.position.set(dep.x, dep.topY + 0.24, dep.z);
+  depGem.castShadow = true;
+  scene.add(depGem);
+  let depPlacard = makeLabel("Seed Vault", vaultList().length + " preserved", {
+    accent: "#b8e69a",
+    height: 0.36,
+  });
+  depPlacard.position.set(dep.x, 1.16, dep.z + 0.85);
+  depPlacard.rotateX(-0.16);
+  scene.add(depPlacard);
+  interactables.push({
+    focus: new THREE.Vector3(dep.x, dep.topY + 0.4, dep.z),
+    enterId: null,
+    title: "Seed Vault",
+    ring: dep.ring,
+    familyId: null,
+    actionLabel: "preserve the parent",
+    action: () => {
+      const n = vaultPlant(getParentGenome(), "Greenhouse · Gen " + getGeneration());
+      const vaultFam = FAMILIES.find((f) => f.id === "vault");
+      if (vaultFam) syncVaultVariations(vaultFam); // hall hero reads variations
+      scene.remove(depPlacard);
+      disposeObject(depPlacard);
+      depPlacard = makeLabel("Seed Vault", n + " preserved", { accent: "#b8e69a", height: 0.36 });
+      depPlacard.position.set(dep.x, 1.16, dep.z + 0.85);
+      depPlacard.rotateX(-0.16);
+      scene.add(depPlacard);
+      document.dispatchEvent(new CustomEvent("room-stale", { detail: { id: "vault" } }));
+      document.dispatchEvent(new CustomEvent("hero-changed", { detail: { id: "vault" } }));
+    },
+  });
+
   rebuildExhibits();
 
   const banner = makeLabel(family.title, family.subtitle, {
@@ -642,6 +708,247 @@ function buildBreederRoom(family) {
     bounds: { minX: -halfX + 0.6, maxX: halfX - 0.6, minZ: -halfZ + 0.6, maxZ: halfZ - 0.6 },
     colliders,
     interactables,
+    spinners: [],
+    animators: [],
+    tickers: [],
+    exit: true,
+  };
+}
+
+// --- hall of generations ---------------------------------------------------
+// A corridor through evolutionary time: sow 16 wild seeds, and a GA runs a
+// few fitness evaluations per rendered frame while you watch. Checkpoint
+// champions take their pedestals as their generation completes.
+
+const CHECKPOINTS = [1, 2, 3, 5, 7, 10, 13, 16];
+
+function buildGenerationsRoom(family) {
+  const scene = new THREE.Scene();
+  const accent = ACCENTS[family.id] || "#e8c96f";
+  const bg = new THREE.Color("#0c0d11").lerp(new THREE.Color(accent), 0.07);
+  scene.background = bg;
+  scene.fog = new THREE.Fog(bg, 16, 44);
+
+  const halfX = 7;
+  const halfZ = 11;
+  addRoomShell(scene, halfX, halfZ, "#2c313d");
+  baseLighting(scene);
+  scene.add(new THREE.HemisphereLight(new THREE.Color(accent), 0x000000, 0.14));
+
+  const interactables = [];
+  const colliders = [];
+  const tickers = [];
+
+  // champion slots: two columns, generations ascend as you walk north
+  const slots = [];
+  for (let i = 0; i < CHECKPOINTS.length; i++) {
+    const x = i % 2 === 0 ? -3.6 : 3.6;
+    const z = 2.2 - Math.floor(i / 2) * 3.4;
+    const ped = pedestal(accent);
+    ped.group.position.set(x, 0, z);
+    scene.add(ped.group);
+    colliders.push({ x, z, r: 1.0 });
+    spotOver(scene, x, ped.topY + 1.1, ped.topY + 0.9, 0xfff2df, 40);
+    const slot = { x, z, topY: ped.topY, ring: ped.ring, group: null, placard: null };
+    slots.push(slot);
+    interactables.push({
+      focus: new THREE.Vector3(x, ped.topY + 0.9, z),
+      enterId: null,
+      title: "Generation " + CHECKPOINTS[i],
+      ring: ped.ring,
+      familyId: null, // set once a champion stands here
+      variantIndex: i,
+    });
+  }
+
+  const setSlot = (i, variation) => {
+    const slot = slots[i];
+    if (slot.group) {
+      scene.remove(slot.group);
+      disposeObject(slot.group);
+      slot.group = null;
+    }
+    if (slot.placard) {
+      scene.remove(slot.placard);
+      disposeObject(slot.placard);
+    }
+    let title = "Generation " + CHECKPOINTS[i];
+    let note = "not yet grown";
+    if (variation) {
+      try {
+        const specimen = family.make(variation);
+        specimen.position.set(slot.x, slot.topY, slot.z);
+        scene.add(specimen);
+        slot.group = specimen;
+      } catch (e) {
+        console.error("champion build failed", e);
+      }
+      title = variation.name;
+      note = variation.note || "";
+      interactables[i].familyId = family.id;
+      interactables[i].title = variation.name;
+    }
+    const placard = makeLabel(title, note, { accent, height: 0.4 });
+    placard.position.set(slot.x, 1.16, slot.z + 0.85);
+    placard.rotateX(-0.16);
+    scene.add(placard);
+    slot.placard = placard;
+  };
+
+  // populate from the last saved run
+  const saved = loadChampions();
+  saved.forEach((c, i) => {
+    if (i < slots.length) setSlot(i, championVariation(c));
+  });
+  for (let i = saved.length; i < slots.length; i++) setSlot(i, null);
+
+  // status plaque over the run pedestal
+  let statusPlacard = null;
+  const setStatus = (title, note) => {
+    if (statusPlacard) {
+      scene.remove(statusPlacard);
+      disposeObject(statusPlacard);
+    }
+    statusPlacard = makeLabel(title, note, { accent, height: 0.6, bg: "#0d0f14" });
+    statusPlacard.position.set(0, 2.6, 5.2);
+    scene.add(statusPlacard);
+  };
+  setStatus(
+    saved.length ? "Last run preserved" : "No run yet",
+    "E on the sower to evolve 16 generations",
+  );
+
+  // the sower
+  const sow = pedestal(accent);
+  sow.group.position.set(0, 0, 5.2);
+  scene.add(sow.group);
+  colliders.push({ x: 0, z: 5.2, r: 1.0 });
+  spotOver(scene, 0, sow.topY + 1.1, sow.topY + 0.9, 0xfff2df, 40);
+  const seeds = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.22, 1),
+    new THREE.MeshStandardMaterial({
+      color: "#3a2c14",
+      roughness: 0.4,
+      emissive: new THREE.Color(accent),
+      emissiveIntensity: 0.5,
+    }),
+  );
+  seeds.position.set(0, sow.topY + 0.25, 5.2);
+  seeds.castShadow = true;
+  scene.add(seeds);
+
+  let iter = null;
+  let shownGen = 0;
+  let champCount = 0;
+  const machine = {
+    userData: {
+      tick: () => {
+        if (!iter) return;
+        for (let k = 0; k < 3 && iter; k++) {
+          const { value, done } = iter.next();
+          if (done || !value) {
+            iter = null;
+            break;
+          }
+          if (value.type === "progress" && value.gen !== shownGen) {
+            shownGen = value.gen;
+            setStatus("Evolving", "generation " + value.gen + " / 16");
+          } else if (value.type === "champion") {
+            setSlot(champCount, championVariation(value));
+            champCount++;
+          } else if (value.type === "done") {
+            saveChampions(value.champions);
+            syncGenerationsVariations(family);
+            setStatus("Run complete", "fittest: " + value.champions[value.champions.length - 1].fitness.toFixed(3));
+            document.dispatchEvent(new CustomEvent("hero-changed", { detail: { id: family.id } }));
+            iter = null;
+          }
+        }
+      },
+    },
+  };
+  tickers.push(machine);
+
+  interactables.push({
+    focus: new THREE.Vector3(0, sow.topY + 0.4, 5.2),
+    enterId: null,
+    title: "The Sower",
+    ring: sow.ring,
+    familyId: null,
+    actionLabel: "sow 16 wild seeds",
+    action: () => {
+      iter = evolve({});
+      shownGen = 0;
+      champCount = 0;
+      for (let i = 0; i < slots.length; i++) setSlot(i, null);
+      setStatus("Evolving", "sowing…");
+    },
+  });
+
+  const banner = makeLabel(family.title, family.subtitle, { accent, height: 1.0, bg: "#0d0f14" });
+  banner.position.set(0, 3.6, -halfZ + 0.06);
+  banner.scale.setScalar(2.2);
+  scene.add(banner);
+
+  const exit = makeLabel("← EXIT TO HALL", "press Backspace", {
+    accent: "#ff9d6f",
+    height: 0.5,
+    bg: "#0d0f14",
+  });
+  exit.position.set(0, 1.5, halfZ - 0.1);
+  exit.rotation.y = Math.PI;
+  scene.add(exit);
+
+  return {
+    scene,
+    spawn: { pos: new THREE.Vector3(0, 1.6, halfZ - 1.8), yaw: Math.PI },
+    bounds: { minX: -halfX + 0.6, maxX: halfX - 0.6, minZ: -halfZ + 0.6, maxZ: halfZ - 0.6 },
+    colliders,
+    interactables,
+    spinners: [],
+    animators: [],
+    tickers,
+    exit: true,
+  };
+}
+
+// --- empty vault -----------------------------------------------------------
+
+function buildEmptyVaultRoom(family) {
+  const scene = new THREE.Scene();
+  const accent = ACCENTS[family.id] || "#b8e69a";
+  const bg = new THREE.Color("#0c0d11").lerp(new THREE.Color(accent), 0.07);
+  scene.background = bg;
+  scene.fog = new THREE.Fog(bg, 14, 34);
+
+  const half = 7;
+  addRoomShell(scene, half, half, "#2c313d");
+  baseLighting(scene);
+
+  const sign = makeLabel(
+    "The vault is empty",
+    "breed a plant in the Greenhouse · preserve it at the vault pedestal",
+    { accent, height: 0.9, bg: "#0d0f14" },
+  );
+  sign.position.set(0, 2.6, -half + 0.06);
+  sign.scale.setScalar(1.8);
+  scene.add(sign);
+
+  const exit = makeLabel("← EXIT TO HALL", "press E or Backspace", {
+    accent: "#ff9d6f",
+    height: 0.5,
+    bg: "#0d0f14",
+  });
+  exit.position.set(0, 1.5, half - 0.1);
+  exit.rotation.y = Math.PI;
+  scene.add(exit);
+
+  return {
+    scene,
+    spawn: { pos: new THREE.Vector3(0, 1.6, half - 2), yaw: Math.PI },
+    bounds: { minX: -half + 0.6, maxX: half - 0.6, minZ: -half + 0.6, maxZ: half - 0.6 },
+    colliders: [],
+    interactables: [],
     spinners: [],
     animators: [],
     tickers: [],

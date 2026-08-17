@@ -10,7 +10,10 @@ function rotate(vec, axis, deg) {
   vec.applyAxisAngle(axis, deg * DEG);
 }
 
-export function interpret(tokens, opts = {}) {
+// Walk the token stream and return raw geometry data (segments + organ
+// placements) without building any meshes. interpret() renders it; the
+// evolution fitness function consumes the segments directly.
+export function traceSegments(tokens, opts = {}) {
   const o = {
     mode: "plain",
     step: 1,
@@ -28,8 +31,6 @@ export function interpret(tokens, opts = {}) {
     organs: {},
     ...opts,
   };
-
-  const group = new THREE.Group();
 
   // Turtle frame.
   const pos = new THREE.Vector3(0, 0, 0);
@@ -160,12 +161,17 @@ export function interpret(tokens, opts = {}) {
     }
   }
 
+  return { o, segments, organPlacements };
+}
+
+export function interpret(tokens, opts = {}) {
+  const { o, segments, organPlacements } = traceSegments(tokens, opts);
+  const group = new THREE.Group();
   if (segments.length) group.add(buildTubes(segments, o));
   for (const type of Object.keys(organPlacements)) {
     const mesh = buildOrgans(type, organPlacements[type]);
     if (mesh) group.add(mesh);
   }
-
   return group;
 }
 

@@ -16,6 +16,8 @@ import { buildParticleLife } from "./particlelife.js";
 import { buildReactionPanel } from "./reaction.js";
 import { dla2, dla3 } from "./dla.js";
 import { buildLeniaPanel } from "./lenia.js";
+import { syncGenerationsVariations } from "./evolve.js";
+import { syncVaultVariations } from "./vault.js";
 
 // --- helpers --------------------------------------------------------------
 
@@ -2041,6 +2043,32 @@ export const FAMILIES = [
     spin: false,
     variations: [], // filled from the live lineage by genetics.syncVariations
   },
+
+  {
+    id: "generations",
+    kind: "gagallery",
+    title: "Hall of Generations",
+    subtitle: "Interlude · Selection without an eye",
+    blurb:
+      "Sixteen wild seeds per generation. Fitness is sunlight caught minus wood spent minus lean — nobody chooses, the function does. Sow a run and watch checkpoint champions take their pedestals in order.",
+    make: buildStringPlant,
+    heroIndex: 0,
+    spin: false,
+    variations: [], // synced from the last saved run
+  },
+
+  {
+    id: "vault",
+    kind: "vault",
+    title: "Seed Vault",
+    subtitle: "Interlude · What visitors kept",
+    blurb:
+      "Lineages bred in the Greenhouse and preserved at its vault pedestal. The museum slowly fills with plants somebody chose to keep.",
+    make: buildStringPlant,
+    heroIndex: 0,
+    spin: false,
+    variations: [], // synced from localStorage
+  },
 ];
 
 export function familyById(id) {
@@ -2226,5 +2254,16 @@ for (const f of FAMILIES) {
   }
 }
 
-// seed the greenhouse from the persisted lineage before anything renders
+// evolution-track grammar editing works the same in all three rooms
+FAMILY_CONTROLS.generations = FAMILY_CONTROLS.evolution;
+FAMILY_CONTROLS.vault = FAMILY_CONTROLS.evolution;
+for (const id of ["generations", "vault"]) {
+  const f = familyById(id);
+  f.controls = FAMILY_CONTROLS[id].controls;
+  f.grammar = true;
+}
+
+// seed the greenhouse, hall of generations, and vault before anything renders
 syncVariations(familyById("evolution"));
+syncGenerationsVariations(familyById("generations"));
+syncVaultVariations(familyById("vault"));

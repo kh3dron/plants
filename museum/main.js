@@ -115,24 +115,37 @@ function room(id) {
   return cache.get(key);
 }
 
-// the greenhouse changed the lineage: swap the hall's evolution hero in place
-document.addEventListener("lineage-changed", () => {
+// a room changed its family's flagship (breeding, evolving, vaulting):
+// swap that hall hero in place
+document.addEventListener("hero-changed", (e) => {
+  const id = e.detail && e.detail.id;
   const loc = cache.get("hall");
-  const h = loc && loc.heroes && loc.heroes.evolution;
+  const h = id && loc && loc.heroes && loc.heroes[id];
   if (!h) return;
   loc.scene.remove(h.group);
   disposeObject(h.group);
-  const fam = familyById("evolution");
+  const fam = familyById(id);
   let g;
   try {
-    g = fam.make(fam.variations[0]);
-  } catch (e) {
-    console.error("hero rebuild failed", e);
+    const v = fam.variations[fam.heroIndex] || fam.variations[0];
+    g = v ? fam.make(v) : new THREE.Group();
+  } catch (e2) {
+    console.error("hero rebuild failed", e2);
     g = new THREE.Group();
   }
   g.position.set(h.x, h.topY, h.z);
   loc.scene.add(g);
   h.group = g;
+});
+
+// a room's contents went stale (e.g. a seed was vaulted): rebuild on next entry
+document.addEventListener("room-stale", (e) => {
+  const id = e.detail && e.detail.id;
+  const key = "room:" + id;
+  const loc = cache.get(key);
+  if (!loc) return;
+  disposeObject(loc.scene);
+  cache.delete(key);
 });
 
 let current = null;

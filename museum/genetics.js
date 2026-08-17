@@ -233,6 +233,14 @@ export function getGeneration() {
   return lineage.generation;
 }
 
+export function getParentGenome() {
+  return cloneGenome(lineage.parent);
+}
+
+export function randomFounder(rnd = Math.random) {
+  return cloneGenome(FOUNDERS[Math.floor(rnd() * FOUNDERS.length)]);
+}
+
 export function rerollBrood() {
   brood = [];
   for (let i = 0; i < BROOD_SIZE; i++) brood.push(makeChild(lineage.parent));
