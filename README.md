@@ -10,7 +10,7 @@ Live: [kh3dron.github.io/plants](https://kh3dron.github.io/plants/)
 
 Controls: `WASD` move · `E` enter room / act · `F` focus an exhibit · `M` room directory · `P` photo mode · `T` guided tour · `Backspace` exit room.
 
-Focus mode gives sliders and a grammar editor per exhibit; the copy-link button encodes the full edited grammar in the URL.
+Focus mode gives sliders and a grammar editor per exhibit; the copy-link button encodes the full edited grammar in the URL, and GLB/STL buttons export the specimen mesh (STL is hand-written binary; point clouds are refused).
 
 ### 1.1 Wings
 
@@ -29,7 +29,11 @@ Focus mode gives sliders and a grammar editor per exhibit; the copy-link button 
 | Cellular Automata | Wolfram rules 30/90/110 panels; Game of Life time towers (R-pentomino, acorn, Gosper gun) — generation = vertical layer; Abelian sandpile | `specimens.js` |
 | Particle Life | live vitrines: 5 species, asymmetric attraction matrix | `particlelife.js` |
 | Reaction–Diffusion | live Gray–Scott panels (mitosis/coral/solitons/maze/worms), GPU ping-pong | `reaction.js` |
+| Lenia | continuous CA on GPU; 5 regimes selected by a CPU survival search | `lenia.js` |
+| Diffusion-Limited Aggregation | coral, sea fan, framed dendrite + frost | `dla.js` |
 | Evolution Greenhouse | interactive selective breeding of bracketed grammars | `genetics.js`, breeder room in `world.js` |
+| Hall of Generations | automatic evolution: sow 16 wild seeds, fitness = canopy − wood − lean, checkpoint champions fill pedestals live | `evolve.js` |
+| Seed Vault | lineages preserved from the Greenhouse, on permanent display | `vault.js` |
 
 The turtle supports tropism (ABOP eq. 2.1): a signed `droop` bends every segment toward or away from gravity — exposed as a slider on the tree families and heritable in the greenhouse. Live exhibits run through a `userData.tick(dt, ctx)` hook driven by the hall/room/focus render loops (`ctx.renderer` for GPU sims).
 
