@@ -122,8 +122,9 @@ export function interpret(tokens, opts = {}) {
   }
 
   // Parametric templates use arbitrary width units; rescale so the trunk
-  // reads as a sensible fraction of overall tree height.
-  if (o.mode === "parametric" && segments.length) {
+  // reads as a sensible fraction of overall tree height. Plain-mode callers
+  // can opt in with radiusFrac, since raw-unit widths shrink with the string.
+  if ((o.mode === "parametric" || o.radiusFrac) && segments.length) {
     let minY = Infinity;
     let maxY = -Infinity;
     let maxRaw = 0;
@@ -133,7 +134,7 @@ export function interpret(tokens, opts = {}) {
       maxRaw = Math.max(maxRaw, s.r0, s.r1);
     }
     const height = Math.max(maxY - minY, 1e-3);
-    const frac = o.trunkRadiusFrac || 0.03;
+    const frac = o.radiusFrac || o.trunkRadiusFrac || 0.03;
     const k = maxRaw > 0 ? (frac * height) / maxRaw : 1;
     for (const s of segments) {
       s.r0 = Math.max(s.r0 * k, 1e-4);

@@ -1,9 +1,10 @@
 // App shell: renderer, first-person pointer-lock controls, collision,
 // proximity interaction, and fade transitions between the hall and rooms.
 import * as THREE from "three";
-import { buildHall, buildRoom, ACCENTS } from "./world.js";
+import { buildHall, buildRoom, ACCENTS, disposeObject } from "./world.js";
 import { familyById, FAMILIES } from "./specimens.js";
 import { openFocus, decodeHash } from "./focus.js";
+import { makeSwarm } from "./pollinators.js";
 
 const app = document.getElementById("app");
 const overlay = document.getElementById("overlay");
@@ -78,9 +79,17 @@ function renderCurrent() {
 // --- location cache -------------------------------------------------------
 
 const cache = new Map();
+function addSwarm(loc, count) {
+  loc.swarm = makeSwarm(loc, { count });
+  loc.scene.add(loc.swarm.mesh);
+  return loc;
+}
 function hall() {
   if (!cache.has("hall"))
-    cache.set("hall", { ...buildHall(), name: "Grand Hall", sub: FAMILIES.length + " specimens" });
+    cache.set(
+      "hall",
+      addSwarm({ ...buildHall(), name: "Grand Hall", sub: FAMILIES.length + " specimens" }, 56),
+    );
   return cache.get("hall");
 }
 function room(id) {
@@ -88,15 +97,41 @@ function room(id) {
   if (!cache.has(key)) {
     const fam = familyById(id);
     const built = buildRoom(fam);
-    cache.set(key, {
-      ...built,
-      name: fam.title,
-      sub: fam.variations.length + " permutations",
-      familyId: id,
-    });
+    cache.set(
+      key,
+      addSwarm(
+        {
+          ...built,
+          name: fam.title,
+          sub: fam.variations.length + " permutations",
+          familyId: id,
+        },
+        28,
+      ),
+    );
   }
   return cache.get(key);
 }
+
+// the greenhouse changed the lineage: swap the hall's evolution hero in place
+document.addEventListener("lineage-changed", () => {
+  const loc = cache.get("hall");
+  const h = loc && loc.heroes && loc.heroes.evolution;
+  if (!h) return;
+  loc.scene.remove(h.group);
+  disposeObject(h.group);
+  const fam = familyById("evolution");
+  let g;
+  try {
+    g = fam.make(fam.variations[0]);
+  } catch (e) {
+    console.error("hero rebuild failed", e);
+    g = new THREE.Group();
+  }
+  g.position.set(h.x, h.topY, h.z);
+  loc.scene.add(g);
+  h.group = g;
+});
 
 let current = null;
 
@@ -227,8 +262,12 @@ window.addEventListener("keyup", (e) => {
 let nearest = null;
 
 function tryInteract() {
+  if (nearest && nearest.action) {
+    nearest.action(); // breeder pedestals and other in-room machinery
+    return;
+  }
   if (current && current.familyId) {
-    transitionTo(hall); // any E inside a room returns to the hall
+    transitionTo(hall); // any other E inside a room returns to the hall
     return;
   }
   if (nearest && nearest.enterId) {
@@ -492,10 +531,11 @@ function updateInteraction() {
 
   if (best) {
     if (best.ring) best.ring.material.opacity = 0.85;
-    const action = best.enterId
-      ? `<kbd>E</kbd> enter &nbsp;<kbd>F</kbd> focus &nbsp;<b>${best.title}</b>`
-      : `<kbd>F</kbd> focus &nbsp;<b>${best.title}</b>`;
-    setPrompt(action);
+    const bits = [];
+    if (best.enterId) bits.push(`<kbd>E</kbd> enter`);
+    else if (best.action) bits.push(`<kbd>E</kbd> ${best.actionLabel || "activate"}`);
+    if (best.familyId) bits.push(`<kbd>F</kbd> focus`);
+    setPrompt(`${bits.join(" &nbsp;")} &nbsp;<b>${best.title}</b>`);
     crosshair.classList.add("hot");
   } else if (inRoom) {
     setPrompt("<kbd>E</kbd> return to the Grand Hall");
@@ -543,6 +583,7 @@ function animate() {
   if (current) {
     const active = locked && !transitioning;
     if (active) {
+      if (current.swarm) current.swarm.update(dt);
       for (const s of current.spinners) s.rotation.y += dt * 0.22;
       if (current.animators && current.animators.length) {
         growthTime += dt;
@@ -588,6 +629,11 @@ window.__museum = {
     applyCameraOrientation();
   },
   pos: () => ({ x: player.x, z: player.z }),
+  interact: (i) => {
+    const it = current && current.interactables && current.interactables[i];
+    if (it && it.action) it.action();
+    return it ? it.title : null;
+  },
 };
 
 // boot

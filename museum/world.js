@@ -4,8 +4,31 @@
 // interaction.
 import * as THREE from "three";
 import { FAMILIES } from "./specimens.js";
+import {
+  getGeneration,
+  rerollBrood,
+  selectOffspring,
+  reseedLineage,
+  syncVariations,
+} from "./genetics.js";
 
 const WALL_H = 6.2;
+
+// Free the GPU resources of a subtree that is being replaced. Only safe for
+// objects whose geometry isn't shared (breeder plants and labels qualify —
+// they never carry the cached organ geometries).
+export function disposeObject(o) {
+  o.traverse((n) => {
+    if (n.geometry) n.geometry.dispose();
+    if (n.material) {
+      const mats = Array.isArray(n.material) ? n.material : [n.material];
+      for (const m of mats) {
+        if (m.map) m.map.dispose();
+        m.dispose();
+      }
+    }
+  });
+}
 
 // --- shared materials & textures -----------------------------------------
 
@@ -212,8 +235,8 @@ function baseLighting(scene) {
   scene.add(amb);
 }
 
-function spotOver(scene, x, z, target, color) {
-  const spot = new THREE.SpotLight(color || 0xfff4e0, 60, 12, Math.PI / 5.2, 0.55, 1.5);
+function spotOver(scene, x, z, target, color, intensity) {
+  const spot = new THREE.SpotLight(color || 0xfff4e0, intensity || 60, 12, Math.PI / 5.2, 0.55, 1.5);
   spot.position.set(x, WALL_H - 0.4, z);
   spot.target.position.set(x, target, z);
   spot.castShadow = true;
@@ -235,6 +258,8 @@ export const ACCENTS = {
   ifs: "#9dffb8",
   development: "#8fd0ff",
   cells: "#9ad86a",
+  automata: "#5ad7ff",
+  evolution: "#d98bff",
 };
 
 // --- hall -----------------------------------------------------------------
@@ -252,6 +277,7 @@ export function buildHall() {
   const spinners = [];
   const colliders = [];
   const animators = [];
+  const heroes = {}; // familyId → pedestal slot, so a hero can be swapped live
 
   const R = 7.2;
   const n = FAMILIES.length;
@@ -275,6 +301,7 @@ export function buildHall() {
     }
     specimen.position.set(x, ped.topY, z);
     scene.add(specimen);
+    heroes[fam.id] = { group: specimen, x, z, topY: ped.topY };
     if (specimen.userData.growth) animators.push(specimen);
     else if (fam.spin !== false) spinners.push(specimen);
 
@@ -320,12 +347,14 @@ export function buildHall() {
     interactables,
     spinners,
     animators,
+    heroes,
   };
 }
 
 // --- family room ----------------------------------------------------------
 
 export function buildRoom(family) {
+  if (family.kind === "breeder") return buildBreederRoom(family);
   const scene = new THREE.Scene();
   const accent = ACCENTS[family.id] || "#6fbf59";
   // subtle per-room mood: tint the background/fog toward the family accent
@@ -420,6 +449,189 @@ export function buildRoom(family) {
     interactables,
     spinners,
     animators,
+    exit: true,
+  };
+}
+
+// --- evolution greenhouse -------------------------------------------------
+// One parent pedestal, a fan of offspring pedestals, and a wild-seed pedestal
+// to restart the lineage. Selecting an offspring rebuilds the exhibits in
+// place; the room's scene is cached by main.js, so state lives here.
+
+function buildBreederRoom(family) {
+  const scene = new THREE.Scene();
+  const accent = ACCENTS[family.id] || "#d98bff";
+  const bg = new THREE.Color("#0c0d11").lerp(new THREE.Color(accent), 0.07);
+  scene.background = bg;
+  scene.fog = new THREE.Fog(bg, 16, 40);
+
+  const halfX = 8;
+  const halfZ = 8;
+  addRoomShell(scene, halfX, halfZ, "#2c313d");
+  baseLighting(scene);
+  scene.add(new THREE.HemisphereLight(new THREE.Color(accent), 0x000000, 0.16));
+
+  const interactables = [];
+  const colliders = [];
+
+  // pedestal slots: 0 = parent (back center), 1..8 = brood fan facing it
+  const slots = [];
+  const P = { x: 0, z: -4.6 };
+  const addSlot = (x, z, track = true) => {
+    const ped = pedestal(accent);
+    ped.group.position.set(x, 0, z);
+    scene.add(ped.group);
+    colliders.push({ x, z, r: 1.0 });
+    // the fan packs ten pedestals close together — full-strength spots blow out
+    spotOver(scene, x, ped.topY + 1.1, ped.topY + 0.9, 0xfff2df, 22);
+    const slot = { x, z, topY: ped.topY, ring: ped.ring, group: null, placard: null };
+    if (track) slots.push(slot); // untracked slots don't hold a brood variation
+    return slot;
+  };
+
+  addSlot(P.x, P.z);
+  const FAN_R = 5.4;
+  for (let i = 0; i < 8; i++) {
+    const a = -Math.PI * 0.42 + (i / 7) * Math.PI * 0.84;
+    addSlot(P.x + Math.sin(a) * FAN_R, P.z + Math.cos(a) * FAN_R);
+  }
+
+  let genPlaque = null;
+
+  const rebuildExhibits = () => {
+    syncVariations(family);
+    slots.forEach((slot, idx) => {
+      const v = family.variations[idx];
+      if (slot.group) {
+        scene.remove(slot.group);
+        disposeObject(slot.group);
+      }
+      let specimen;
+      try {
+        specimen = family.make(v);
+      } catch (e) {
+        console.error("brood build failed", v.name, e);
+        specimen = new THREE.Group();
+      }
+      specimen.position.set(slot.x, slot.topY, slot.z);
+      scene.add(specimen);
+      slot.group = specimen;
+
+      if (slot.placard) {
+        scene.remove(slot.placard);
+        disposeObject(slot.placard);
+      }
+      const placard = makeLabel(v.name, v.note || "", { accent, height: 0.4 });
+      placard.position.set(slot.x, 1.16, slot.z + 0.85);
+      placard.rotateX(-0.16);
+      scene.add(placard);
+      slot.placard = placard;
+
+      if (interactables[idx]) interactables[idx].title = v.name;
+    });
+
+    if (genPlaque) {
+      scene.remove(genPlaque);
+      disposeObject(genPlaque);
+    }
+    genPlaque = makeLabel("Generation " + getGeneration(), "walk to an offspring · E selects it as the next parent", {
+      accent,
+      height: 0.8,
+      bg: "#0d0f14",
+    });
+    genPlaque.position.set(0, 4.4, -halfZ + 0.06);
+    genPlaque.scale.setScalar(1.7);
+    scene.add(genPlaque);
+  };
+
+  const announce = () => document.dispatchEvent(new CustomEvent("lineage-changed"));
+
+  slots.forEach((slot, idx) => {
+    const it = {
+      focus: new THREE.Vector3(slot.x, slot.topY + 0.9, slot.z),
+      enterId: null,
+      title: "",
+      ring: slot.ring,
+      familyId: family.id,
+      variantIndex: idx,
+    };
+    if (idx === 0) {
+      it.actionLabel = "breed a new brood";
+      it.action = () => {
+        rerollBrood();
+        rebuildExhibits();
+      };
+    } else {
+      it.actionLabel = "select as parent";
+      it.action = () => {
+        selectOffspring(idx - 1);
+        rebuildExhibits();
+        announce();
+      };
+    }
+    interactables.push(it);
+  });
+
+  // wild seed: a glowing kernel that restarts the lineage from a founder
+  const wild = addSlot(halfX - 2.4, halfZ - 3.2, false);
+  const kernel = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.22, 1),
+    new THREE.MeshStandardMaterial({
+      color: "#3a2c14",
+      roughness: 0.4,
+      emissive: new THREE.Color(accent),
+      emissiveIntensity: 0.5,
+    }),
+  );
+  kernel.position.set(wild.x, wild.topY + 0.25, wild.z);
+  kernel.castShadow = true;
+  scene.add(kernel);
+  const wildPlacard = makeLabel("Wild Seed", "restart from a founder", { accent, height: 0.36 });
+  wildPlacard.position.set(wild.x, 1.16, wild.z + 0.85);
+  wildPlacard.rotateX(-0.16);
+  scene.add(wildPlacard);
+  interactables.push({
+    focus: new THREE.Vector3(wild.x, wild.topY + 0.4, wild.z),
+    enterId: null,
+    title: "Wild Seed",
+    ring: wild.ring,
+    familyId: null,
+    actionLabel: "start a fresh lineage",
+    action: () => {
+      reseedLineage();
+      rebuildExhibits();
+      announce();
+    },
+  });
+
+  rebuildExhibits();
+
+  const banner = makeLabel(family.title, family.subtitle, {
+    accent,
+    height: 1.0,
+    bg: "#0d0f14",
+  });
+  banner.position.set(0, 5.5, -halfZ + 0.06);
+  banner.scale.setScalar(2.0);
+  scene.add(banner);
+
+  const exit = makeLabel("← EXIT TO HALL", "press Backspace", {
+    accent: "#ff9d6f",
+    height: 0.5,
+    bg: "#0d0f14",
+  });
+  exit.position.set(0, 1.5, halfZ - 0.1);
+  exit.rotation.y = Math.PI;
+  scene.add(exit);
+
+  return {
+    scene,
+    spawn: { pos: new THREE.Vector3(0, 1.6, halfZ - 1.8), yaw: Math.PI },
+    bounds: { minX: -halfX + 0.6, maxX: halfX - 0.6, minZ: -halfZ + 0.6, maxZ: halfZ - 0.6 },
+    colliders,
+    interactables,
+    spinners: [],
+    animators: [],
     exit: true,
   };
 }

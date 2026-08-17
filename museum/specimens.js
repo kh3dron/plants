@@ -10,6 +10,7 @@ import {
   makeRng,
 } from "./lsystem.js";
 import { interpret } from "./turtle.js";
+import { syncVariations } from "./genetics.js";
 
 // --- helpers --------------------------------------------------------------
 
@@ -457,6 +458,149 @@ function buildCellularLayers(v) {
   group.add(mesh);
 
   return normalize(group, v.height || 2.6);
+}
+
+// Elementary cellular automata (Wolfram): one byte of rule, a row of cells,
+// time flowing downward. Live cells become a woven panel of glowing tiles.
+function buildElementaryCA(v) {
+  const W = v.width || 121;
+  const R = v.rows || 96;
+  const rule = (v.rule | 0) & 255;
+  const rng = makeRng(v.seed || 1);
+  let row = new Uint8Array(W);
+  if (v.random) {
+    const d = v.density != null ? v.density : 0.33;
+    for (let i = 0; i < W; i++) row[i] = rng() < d ? 1 : 0;
+  } else {
+    row[W >> 1] = 1;
+  }
+
+  const live = []; // flat [col, row, col, row, ...]
+  for (let r = 0; r < R; r++) {
+    for (let i = 0; i < W; i++) if (row[i]) live.push(i, r);
+    const next = new Uint8Array(W);
+    for (let i = 0; i < W; i++) {
+      const l = row[(i - 1 + W) % W];
+      const c = row[i];
+      const rr = row[(i + 1) % W];
+      next[i] = (rule >> ((l << 2) | (c << 1) | rr)) & 1;
+    }
+    row = next;
+  }
+
+  const n = live.length / 2;
+  const cell = 0.03;
+  const geo = new THREE.BoxGeometry(cell * 0.84, cell * 0.84, cell * 0.5);
+  const mat = new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0 });
+  mat.emissive = new THREE.Color(v.glow || "#06131c");
+  mat.emissiveIntensity = 0.7;
+  const mesh = new THREE.InstancedMesh(geo, mat, n);
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3);
+  const m = new THREE.Matrix4();
+  const p = new THREE.Vector3();
+  const q = new THREE.Quaternion();
+  const s = new THREE.Vector3(1, 1, 1);
+  const col = new THREE.Color();
+  const oldC = new THREE.Color(v.baseColor || "#1a5570");
+  const newC = new THREE.Color(v.tipColor || "#8ff3ff");
+  for (let k = 0; k < n; k++) {
+    const r = live[k * 2 + 1];
+    p.set((live[k * 2] - (W - 1) / 2) * cell, (R - 1 - r) * cell, 0);
+    m.compose(p, q, s);
+    mesh.setMatrixAt(k, m);
+    col.copy(oldC).lerp(newC, r / Math.max(R - 1, 1));
+    mesh.setColorAt(k, col);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.castShadow = true;
+  const wrap = new THREE.Group();
+  wrap.add(mesh);
+  const norm = normalize(wrap, v.height || 2.4);
+  return v.framed ? frameSpecimen(norm, v.frameStyle) : norm;
+}
+
+// Conway's Game of Life with time as the vertical axis: each generation is a
+// stratum of voxels, so still lifes become columns and gliders become
+// diagonal strands.
+function buildLifeTower(v) {
+  const N = v.grid || 60;
+  const G = v.generations || 90;
+  let grid = new Uint8Array(N * N);
+
+  // stamp the seed pattern (centered unless an origin is given)
+  let maxX = 0;
+  let maxZ = 0;
+  for (const [x, z] of v.coords) {
+    if (x > maxX) maxX = x;
+    if (z > maxZ) maxZ = z;
+  }
+  const ox = v.origin ? v.origin[0] : (N - maxX - 1) >> 1;
+  const oz = v.origin ? v.origin[1] : (N - maxZ - 1) >> 1;
+  for (const [x, z] of v.coords) {
+    const xx = ox + x;
+    const zz = oz + z;
+    if (xx >= 0 && xx < N && zz >= 0 && zz < N) grid[zz * N + xx] = 1;
+  }
+
+  const layers = []; // per generation: packed cell indices
+  let total = 0;
+  for (let g = 0; g < G; g++) {
+    const cells = [];
+    for (let i = 0; i < N * N; i++) if (grid[i]) cells.push(i);
+    if (!cells.length) break;
+    layers.push(cells);
+    total += cells.length;
+    const next = new Uint8Array(N * N);
+    for (let z = 0; z < N; z++) {
+      for (let x = 0; x < N; x++) {
+        let c = 0;
+        for (let dz = -1; dz <= 1; dz++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dz) continue;
+            const xx = x + dx;
+            const zz = z + dz;
+            if (xx >= 0 && xx < N && zz >= 0 && zz < N) c += grid[zz * N + xx];
+          }
+        }
+        next[z * N + x] = c === 3 || (grid[z * N + x] && c === 2) ? 1 : 0;
+      }
+    }
+    grid = next;
+  }
+
+  const LH = 0.6; // vertical distance between generations (cell = 1)
+  const geo = new THREE.BoxGeometry(0.86, 0.5, 0.86);
+  const mat = new THREE.MeshStandardMaterial({ roughness: 0.45, metalness: 0.05 });
+  mat.emissive = new THREE.Color(v.glow || "#03141f");
+  mat.emissiveIntensity = 0.8;
+  const mesh = new THREE.InstancedMesh(geo, mat, total);
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(total * 3), 3);
+  const m = new THREE.Matrix4();
+  const p = new THREE.Vector3();
+  const q = new THREE.Quaternion();
+  const s = new THREE.Vector3(1, 1, 1);
+  const col = new THREE.Color();
+  const baseC = new THREE.Color(v.baseColor || "#0d3550");
+  const tipC = new THREE.Color(v.tipColor || "#79eaff");
+  let k = 0;
+  layers.forEach((cells, g) => {
+    const t = g / Math.max(layers.length - 1, 1);
+    col.copy(baseC).lerp(tipC, t);
+    for (const i of cells) {
+      p.set((i % N) - (N - 1) / 2, g * LH, Math.floor(i / N) - (N - 1) / 2);
+      m.compose(p, q, s);
+      mesh.setMatrixAt(k, m);
+      mesh.setColorAt(k, col);
+      k++;
+    }
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.castShadow = true;
+  const wrap = new THREE.Group();
+  wrap.add(mesh);
+  return normalize(wrap, v.height || 2.7);
 }
 
 // --- turtle presets -------------------------------------------------------
@@ -1209,6 +1353,117 @@ export const FAMILIES = [
       },
     ],
   },
+
+  {
+    id: "automata",
+    title: "Cellular Automata",
+    subtitle: "Interlude · Emergent computation",
+    blurb:
+      "One local rule, applied everywhere at once. Conway's Life stacked into towers of time — still lifes become columns, gliders become diagonal strands — and a single byte of Wolfram rule weaves chaos, order, or a computer.",
+    make: (v) => (v.life ? buildLifeTower(v) : buildElementaryCA(v)),
+    heroIndex: 5,
+    spin: false,
+    // panels first: the room grid puts them on the far wall, with the Life
+    // towers standing in the row before them
+    variations: [
+      {
+        name: "Rule 30",
+        note: "chaos from one cell",
+        rule: 30,
+        width: 121,
+        rows: 100,
+        framed: true,
+        baseColor: "#1a5570",
+        tipColor: "#8ff3ff",
+        height: 2.4,
+      },
+      {
+        name: "Rule 90",
+        note: "Sierpiński, again",
+        rule: 90,
+        width: 129,
+        rows: 64,
+        framed: true,
+        baseColor: "#1f6f5a",
+        tipColor: "#9dffb8",
+        height: 1.9,
+      },
+      {
+        name: "Rule 110",
+        note: "Turing-complete",
+        rule: 110,
+        width: 121,
+        rows: 100,
+        random: true,
+        density: 0.3,
+        seed: 9,
+        framed: true,
+        baseColor: "#6f4f1f",
+        tipColor: "#ffd98f",
+        height: 2.4,
+      },
+      {
+        name: "R-Pentomino",
+        note: "Life · 5 cells, 90 generations",
+        life: true,
+        grid: 64,
+        generations: 90,
+        coords: [
+          [1, 0], [2, 0], [0, 1], [1, 1], [1, 2],
+        ],
+        baseColor: "#0d3550",
+        tipColor: "#79eaff",
+        height: 2.8,
+      },
+      {
+        name: "Acorn",
+        note: "Life · slow burn",
+        life: true,
+        grid: 72,
+        generations: 120,
+        coords: [
+          [1, 0], [3, 1], [0, 2], [1, 2], [4, 2], [5, 2], [6, 2],
+        ],
+        baseColor: "#0d3550",
+        tipColor: "#9fffd8",
+        height: 2.9,
+      },
+      {
+        name: "Gosper Glider Gun",
+        note: "Life · gliders as strands",
+        life: true,
+        grid: 52,
+        generations: 130,
+        origin: [4, 4],
+        coords: [
+          [24, 0], [22, 1], [24, 1],
+          [12, 2], [13, 2], [20, 2], [21, 2], [34, 2], [35, 2],
+          [11, 3], [15, 3], [20, 3], [21, 3], [34, 3], [35, 3],
+          [0, 4], [1, 4], [10, 4], [16, 4], [20, 4], [21, 4],
+          [0, 5], [1, 5], [10, 5], [14, 5], [16, 5], [17, 5], [22, 5], [24, 5],
+          [10, 6], [16, 6], [24, 6],
+          [11, 7], [15, 7],
+          [12, 8], [13, 8],
+        ],
+        baseColor: "#102a4e",
+        tipColor: "#7fb7ff",
+        height: 3.0,
+      },
+    ],
+  },
+
+  {
+    id: "evolution",
+    kind: "breeder",
+    title: "Evolution Greenhouse",
+    subtitle: "Interlude · Artificial selection",
+    blurb:
+      "A parent plant and eight mutant offspring — the genome is the grammar itself. Walk to the offspring you like best and press E: it becomes the next parent. Your eye is the fitness function.",
+    make: buildStringPlant,
+    heroIndex: 0,
+    spin: false,
+    variations: [], // filled from the live lineage by genetics.syncVariations
+  },
 ];
 
 export function familyById(id) {
@@ -1305,6 +1560,29 @@ const FAMILY_CONTROLS = {
       { path: "period", label: "Seconds / step", min: 0.3, max: 2, step: 0.05 },
     ],
   },
+  automata: {
+    controls: (v) =>
+      v.life
+        ? [
+            { path: "generations", label: "Generations", min: 10, max: 200, step: 5 },
+            { path: "grid", label: "Grid size", min: 24, max: 96, step: 4 },
+          ]
+        : [
+            { path: "rule", label: "Rule", min: 0, max: 255, step: 1 },
+            { path: "rows", label: "Rows", min: 24, max: 160, step: 4 },
+            { path: "width", label: "Width", min: 41, max: 201, step: 8 },
+            ...(v.random
+              ? [{ path: "density", label: "Seed density", min: 0.05, max: 0.6, step: 0.01 }]
+              : []),
+          ],
+  },
+  evolution: {
+    grammar: true,
+    controls: [
+      { path: "iterations", label: "Iterations", min: 1, max: 6, step: 1 },
+      { path: "turtle.angle", label: "Angle °", min: 4, max: 60, step: 0.1 },
+    ],
+  },
 };
 
 for (const f of FAMILIES) {
@@ -1318,3 +1596,6 @@ for (const f of FAMILIES) {
     for (const v of f.variations) v.framed = true;
   }
 }
+
+// seed the greenhouse from the persisted lineage before anything renders
+syncVariations(familyById("evolution"));
