@@ -39,6 +39,8 @@ camera = new THREE.PerspectiveCamera(
   120,
 );
 
+const tickCtx = { renderer }; // handed to live specimens (GPU sims render with it)
+
 // --- bloom post-processing (optional; falls back to direct render) --------
 
 let composer = null;
@@ -584,7 +586,7 @@ function animate() {
     const active = locked && !transitioning;
     if (active) {
       if (current.swarm) current.swarm.update(dt);
-      for (const t of current.tickers || []) t.userData.tick(dt);
+      for (const t of current.tickers || []) t.userData.tick(dt, tickCtx);
       for (const s of current.spinners) s.rotation.y += dt * 0.22;
       if (current.animators && current.animators.length) {
         growthTime += dt;
@@ -637,7 +639,7 @@ window.__museum = {
   },
   tick: (frames) => {
     for (let i = 0; i < (frames || 60); i++) {
-      for (const t of (current && current.tickers) || []) t.userData.tick(1 / 60);
+      for (const t of (current && current.tickers) || []) t.userData.tick(1 / 60, tickCtx);
       if (current && current.swarm) current.swarm.update(1 / 60);
     }
   },

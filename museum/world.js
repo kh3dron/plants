@@ -262,6 +262,7 @@ export const ACCENTS = {
   evolution: "#d98bff",
   colonization: "#ffb56f",
   particlelife: "#ff8fb0",
+  reaction: "#57e6b8",
 };
 
 // --- hall -----------------------------------------------------------------
@@ -271,7 +272,9 @@ export function buildHall() {
   scene.background = new THREE.Color("#0e0f14");
   scene.fog = new THREE.Fog("#0e0f14", 14, 34);
 
-  const half = 12;
+  // the pedestal circle grows with the collection; the shell follows it
+  const R = Math.max(7.2, FAMILIES.length * 0.62);
+  const half = Math.max(12, R + 4.8);
   addRoomShell(scene, half, half, "#343947");
   baseLighting(scene);
 
@@ -282,7 +285,6 @@ export function buildHall() {
   const tickers = []; // specimens exposing userData.tick(dt) — live sims
   const heroes = {}; // familyId → pedestal slot, so a hero can be swapped live
 
-  const R = 7.2;
   const n = FAMILIES.length;
   FAMILIES.forEach((fam, i) => {
     const ang = -Math.PI / 2 + (i / n) * Math.PI * 2;
@@ -345,7 +347,7 @@ export function buildHall() {
 
   return {
     scene,
-    spawn: { pos: new THREE.Vector3(0, 1.6, half - 2.2), yaw: Math.PI },
+    spawn: { pos: new THREE.Vector3(0, 1.6, R + 2.4), yaw: Math.PI },
     bounds: { minX: -half + 0.6, maxX: half - 0.6, minZ: -half + 0.6, maxZ: half - 0.6 },
     colliders,
     interactables,

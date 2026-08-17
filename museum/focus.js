@@ -362,7 +362,7 @@ function loop(t) {
     rebuild(false);
   }
   if (autoYaw) yaw += dt * 0.3;
-  if (obj && obj.userData.tick) obj.userData.tick(dt);
+  if (obj && obj.userData.tick) obj.userData.tick(dt, { renderer });
   if (obj && obj.userData.growth) {
     growthTime += dt;
     tickGrowth(obj, growthTime);

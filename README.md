@@ -22,11 +22,16 @@ Focus mode gives sliders and a grammar editor per exhibit; the copy-link button 
 | Racemes | ABOP ch. 3 inflorescences with organs | `specimens.js` |
 | Phyllotaxis | Vogel spirals, pinecone cylinder | `specimens.js` |
 | Compound Leaves | pinnate / bipinnate / palmate | `specimens.js` |
+| Space Colonization | Runions attractor trees (open/dense/columnar/windswept), Honda comparison, framed leaf venation | `colonize.js` |
 | Iterated Function Systems | chaos-game point clouds | `specimens.js` |
 | Development | staged growth animations | `specimens.js` |
 | Cellular Layers | map-L-system-spirit tissue mosaics | `specimens.js` |
-| Cellular Automata | Wolfram rules 30/90/110 panels; Game of Life time towers (R-pentomino, acorn, Gosper gun) — generation = vertical layer | `specimens.js` |
+| Cellular Automata | Wolfram rules 30/90/110 panels; Game of Life time towers (R-pentomino, acorn, Gosper gun) — generation = vertical layer; Abelian sandpile | `specimens.js` |
+| Particle Life | live vitrines: 5 species, asymmetric attraction matrix | `particlelife.js` |
+| Reaction–Diffusion | live Gray–Scott panels (mitosis/coral/solitons/maze/worms), GPU ping-pong | `reaction.js` |
 | Evolution Greenhouse | interactive selective breeding of bracketed grammars | `genetics.js`, breeder room in `world.js` |
+
+The turtle supports tropism (ABOP eq. 2.1): a signed `droop` bends every segment toward or away from gravity — exposed as a slider on the tree families and heritable in the greenhouse. Live exhibits run through a `userData.tick(dt, ctx)` hook driven by the hall/room/focus render loops (`ctx.renderer` for GPU sims).
 
 ### 1.2 Evolution Greenhouse
 
@@ -43,6 +48,6 @@ Dawkins-biomorph selection over L-system genomes (axiom, rules, iterations, angl
 ## 3.0 Dev
 
 - Serve statically: `python3 -m http.server` (or `make build && make run` for Docker).
-- Headless regression test (builds all 66 catalog specimens plus 30 bred generations, no WebGL needed):
+- Headless regression test (builds every catalog specimen, ticks live sims 120 frames, breeds 30 generations; no WebGL needed):
   `deno run --import-map=tools/importmap.json --allow-read --allow-net=cdn.jsdelivr.net tools/test_catalog.js`
 - Headless smoke hooks: `window.__museum` (`goHall`, `goRoom(id)`, `view(yaw,pitch,x,z)`, `pos()`, `interact(i)`).

@@ -13,6 +13,7 @@ import { interpret, buildTubes } from "./turtle.js";
 import { syncVariations } from "./genetics.js";
 import { colonize } from "./colonize.js";
 import { buildParticleLife } from "./particlelife.js";
+import { buildReactionPanel } from "./reaction.js";
 
 // --- helpers --------------------------------------------------------------
 
@@ -496,6 +497,88 @@ function buildColonization(v) {
   const group = new THREE.Group();
   group.add(mesh);
   const norm = normalize(group, v.height || 2.7);
+  return v.framed ? frameSpecimen(norm, v.frameStyle) : norm;
+}
+
+// Live Gray–Scott panel (sim in reaction.js); framed like the other flat works.
+function buildReaction(v) {
+  const { group, tick } = buildReactionPanel(v);
+  const norm = normalize(group, v.height || 2.3);
+  const out = frameSpecimen(norm, v.frameStyle);
+  out.userData.tick = tick;
+  return out;
+}
+
+// Abelian sandpile (Bak–Tang–Wiesenfeld): drop N grains on one cell, topple
+// anything holding 4+. The stabilized pile is a four-color fractal.
+function buildSandpile(v) {
+  const N = Math.max(2000, Math.min(v.grains || 30000, 60000));
+  const R = Math.ceil(Math.sqrt(N)) + 8;
+  const W = 2 * R + 1;
+  const h = new Int32Array(W * W);
+  h[R * W + R] = N;
+  const q = [R * W + R];
+  while (q.length) {
+    const i = q.pop();
+    if (h[i] < 4) continue;
+    const t = h[i] >> 2;
+    h[i] &= 3;
+    const x = i % W;
+    const up = i - W;
+    const dn = i + W;
+    if (up >= 0 && (h[up] += t) >= 4) q.push(up);
+    if (dn < W * W && (h[dn] += t) >= 4) q.push(dn);
+    if (x > 0 && (h[i - 1] += t) >= 4) q.push(i - 1);
+    if (x < W - 1 && (h[i + 1] += t) >= 4) q.push(i + 1);
+  }
+
+  // footprint = disk out to the farthest nonzero cell; zeros inside count
+  let maxR2 = 0;
+  for (let y = 0; y < W; y++) {
+    for (let x = 0; x < W; x++) {
+      if (h[y * W + x] > 0) {
+        const d2 = (x - R) * (x - R) + (y - R) * (y - R);
+        if (d2 > maxR2) maxR2 = d2;
+      }
+    }
+  }
+  const cells = [];
+  for (let y = 0; y < W; y++) {
+    for (let x = 0; x < W; x++) {
+      if ((x - R) * (x - R) + (y - R) * (y - R) <= maxR2) cells.push(x, y, h[y * W + x]);
+    }
+  }
+
+  const n = cells.length / 3;
+  const cell = 0.03;
+  const geo = new THREE.BoxGeometry(cell * 0.92, cell * 0.92, cell * 0.4);
+  const mat = new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0 });
+  mat.emissive = new THREE.Color("#060d14");
+  mat.emissiveIntensity = 0.7;
+  const mesh = new THREE.InstancedMesh(geo, mat, n);
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3);
+  const palette = [
+    new THREE.Color(v.c0 || "#131c2e"),
+    new THREE.Color(v.c1 || "#1f6f8f"),
+    new THREE.Color(v.c2 || "#3fd0b0"),
+    new THREE.Color(v.c3 || "#ffd98f"),
+  ];
+  const m = new THREE.Matrix4();
+  const p = new THREE.Vector3();
+  const qt = new THREE.Quaternion();
+  const s = new THREE.Vector3(1, 1, 1);
+  for (let k = 0; k < n; k++) {
+    p.set((cells[k * 3] - R) * cell, (W - 1 - cells[k * 3 + 1] - R) * cell, 0);
+    m.compose(p, qt, s);
+    mesh.setMatrixAt(k, m);
+    mesh.setColorAt(k, palette[cells[k * 3 + 2] & 3]);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.castShadow = true;
+  const wrap = new THREE.Group();
+  wrap.add(mesh);
+  const norm = normalize(wrap, v.height || 2.4);
   return v.framed ? frameSpecimen(norm, v.frameStyle) : norm;
 }
 
@@ -1531,7 +1614,7 @@ export const FAMILIES = [
     subtitle: "Interlude · Emergent computation",
     blurb:
       "One local rule, applied everywhere at once. Conway's Life stacked into towers of time — still lifes become columns, gliders become diagonal strands — and a single byte of Wolfram rule weaves chaos, order, or a computer.",
-    make: (v) => (v.life ? buildLifeTower(v) : buildElementaryCA(v)),
+    make: (v) => (v.life ? buildLifeTower(v) : v.sand ? buildSandpile(v) : buildElementaryCA(v)),
     heroIndex: 5,
     spin: false,
     // panels first: the room grid puts them on the far wall, with the Life
@@ -1620,6 +1703,14 @@ export const FAMILIES = [
         tipColor: "#7fb7ff",
         height: 3.0,
       },
+      {
+        name: "Sandpile",
+        note: "30,000 grains · one cell",
+        sand: true,
+        grains: 30000,
+        framed: true,
+        height: 2.4,
+      },
     ],
   },
 
@@ -1678,6 +1769,74 @@ export const FAMILIES = [
         count: 380,
         friction: 1.1,
         force: 1.0,
+        height: 2.3,
+      },
+    ],
+  },
+
+  {
+    id: "reaction",
+    title: "Reaction–Diffusion",
+    subtitle: "Turing 1952 · Gray–Scott",
+    blurb:
+      "Two chemicals: U feeds V, V consumes U, and they diffuse at different speeds. Turing's morphogenesis — the mathematics behind leopard spots and angelfish stripes — running live on each panel.",
+    make: buildReaction,
+    heroIndex: 1,
+    spin: false,
+    variations: [
+      {
+        name: "Mitosis",
+        note: "F=.0367 · k=.0649",
+        feed: 0.0367,
+        kill: 0.0649,
+        seed: 11,
+        mid: "#8f3fb0",
+        hot: "#ffd9f5",
+        bg: "#12041a",
+        height: 2.3,
+      },
+      {
+        name: "Coral",
+        note: "F=.0545 · k=.062",
+        feed: 0.0545,
+        kill: 0.062,
+        seed: 3,
+        mid: "#1f8f8f",
+        hot: "#c9ffe8",
+        bg: "#04121a",
+        height: 2.3,
+      },
+      {
+        name: "Solitons",
+        note: "F=.03 · k=.062",
+        feed: 0.03,
+        kill: 0.062,
+        seed: 7,
+        mid: "#b08f1f",
+        hot: "#fff3c9",
+        bg: "#1a1204",
+        height: 2.3,
+      },
+      {
+        name: "Maze",
+        note: "F=.029 · k=.057",
+        feed: 0.029,
+        kill: 0.057,
+        seed: 19,
+        mid: "#3f6fb0",
+        hot: "#d9eaff",
+        bg: "#040a1a",
+        height: 2.3,
+      },
+      {
+        name: "Worms",
+        note: "F=.046 · k=.063",
+        feed: 0.046,
+        kill: 0.063,
+        seed: 5,
+        mid: "#8fb03f",
+        hot: "#f3ffc9",
+        bg: "#0c1204",
         height: 2.3,
       },
     ],
@@ -1801,6 +1960,8 @@ const FAMILY_CONTROLS = {
             { path: "generations", label: "Generations", min: 10, max: 200, step: 5 },
             { path: "grid", label: "Grid size", min: 24, max: 96, step: 4 },
           ]
+        : v.sand
+        ? [{ path: "grains", label: "Grains", min: 5000, max: 45000, step: 1000 }]
         : [
             { path: "rule", label: "Rule", min: 0, max: 255, step: 1 },
             { path: "rows", label: "Rows", min: 24, max: 160, step: 4 },
@@ -1816,6 +1977,14 @@ const FAMILY_CONTROLS = {
       { path: "iterations", label: "Iterations", min: 1, max: 6, step: 1 },
       { path: "turtle.angle", label: "Angle °", min: 4, max: 60, step: 0.1 },
       { path: "turtle.droop", label: "Tropism", min: -0.08, max: 0.08, step: 0.002 },
+    ],
+  },
+  reaction: {
+    controls: [
+      { path: "feed", label: "Feed rate", min: 0.01, max: 0.09, step: 0.0005 },
+      { path: "kill", label: "Kill rate", min: 0.04, max: 0.07, step: 0.0005 },
+      { path: "steps", label: "Steps / frame", min: 2, max: 30, step: 1 },
+      { path: "seed", label: "Seed", min: 1, max: 99, step: 1 },
     ],
   },
   particlelife: {
