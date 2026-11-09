@@ -508,7 +508,7 @@ function buildColonization(v) {
 function buildLenia(v) {
   const { group, tick } = buildLeniaPanel(v);
   const norm = normalize(group, v.height || 2.3);
-  const out = frameSpecimen(norm, { frame: "#5a7a86", ...v.frameStyle });
+  const out = v.framed === false ? norm : frameSpecimen(norm, { frame: "#5a7a86", ...v.frameStyle });
   out.userData.tick = tick;
   return out;
 }
@@ -558,7 +558,7 @@ function buildDLA(v) {
 function buildReaction(v) {
   const { group, tick } = buildReactionPanel(v);
   const norm = normalize(group, v.height || 2.3);
-  const out = frameSpecimen(norm, v.frameStyle);
+  const out = v.framed === false ? norm : frameSpecimen(norm, v.frameStyle);
   out.userData.tick = tick;
   return out;
 }
@@ -1773,7 +1773,7 @@ export const FAMILIES = [
     title: "Particle Life",
     subtitle: "Interlude · Life-like, not alive",
     blurb:
-      "A few hundred particles and one asymmetric attraction matrix. Cells, chasers and orbits emerge — nothing in the rules mentions any of them. Every vitrine is a different random matrix.",
+      "A few hundred particles and one asymmetric attraction matrix. Cells, chasers and orbits emerge — nothing in the rules mentions any of them. Every exhibit is a different random matrix.",
     make: buildParticleLife,
     heroIndex: 0,
     spin: false,
@@ -2037,7 +2037,7 @@ export const FAMILIES = [
     title: "Evolution Greenhouse",
     subtitle: "Interlude · Artificial selection",
     blurb:
-      "A parent plant and eight mutant offspring — the genome is the grammar itself. Walk to the offspring you like best and press E: it becomes the next parent. Your eye is the fitness function.",
+      "A parent plant and eight mutant offspring — the genome is the grammar itself. Select the offspring you like best: it becomes the next parent. Your eye is the fitness function.",
     make: buildStringPlant,
     heroIndex: 0,
     spin: false,
@@ -2050,7 +2050,7 @@ export const FAMILIES = [
     title: "Hall of Generations",
     subtitle: "Interlude · Selection without an eye",
     blurb:
-      "Sixteen wild seeds per generation. Fitness is sunlight caught minus wood spent minus lean — nobody chooses, the function does. Sow a run and watch checkpoint champions take their pedestals in order.",
+      "Sixteen wild seeds per generation. Fitness is sunlight caught minus wood spent minus lean — nobody chooses, the function does. Sow a run and watch checkpoint champions appear in order.",
     make: buildStringPlant,
     heroIndex: 0,
     spin: false,
@@ -2063,7 +2063,7 @@ export const FAMILIES = [
     title: "Seed Vault",
     subtitle: "Interlude · What visitors kept",
     blurb:
-      "Lineages bred in the Greenhouse and preserved at its vault pedestal. The museum slowly fills with plants somebody chose to keep.",
+      "Lineages bred in the Greenhouse and preserved in the vault. The collection slowly fills with plants somebody chose to keep.",
     make: buildStringPlant,
     heroIndex: 0,
     spin: false,

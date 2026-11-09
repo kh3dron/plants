@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🌱 The Algorithmic Beauty of Plants — Museum</title>
+  <style>
+    :root {
+      --accent: #9bd88a;
+      --ink: #f2f3ee;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: #0e0f14;
+      color: var(--ink);
+      font-family: "Courier New", monospace;
+    }
+
+    #app { position: fixed; inset: 0; }
+    canvas { display: block; }
+
+    /* --- HUD --- */
+    #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+
+    #crosshair {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 6px; height: 6px;
+      margin: -3px 0 0 -3px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.55);
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    #crosshair.hot { transform: scale(1.8); background: var(--accent); }
+
+    #location {
+      position: absolute;
+      top: 22px; left: 26px;
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(242, 243, 238, 0.75);
+      border-left: 2px solid var(--accent);
+      padding-left: 12px;
+    }
+    #location small {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: rgba(242, 243, 238, 0.4);
+      margin-top: 3px;
+    }
+
+    #prompt {
+      position: absolute;
+      bottom: 22%; left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      background: rgba(10, 12, 16, 0.78);
+      border: 1px solid rgba(155, 216, 138, 0.4);
+      border-radius: 6px;
+      font-size: 15px;
+      letter-spacing: 0.05em;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      white-space: nowrap;
+    }
+    #prompt.show { opacity: 1; }
+    #prompt kbd {
+      background: var(--accent);
+      color: #0e0f14;
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-weight: bold;
+      margin: 0 2px;
+    }
+
+    #hint {
+      position: absolute;
+      bottom: 18px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      color: rgba(242, 243, 238, 0.4);
+    }
+
+    /* shown when the cursor is released mid-session (does not cover the scene) */
+    #resume {
+      position: absolute;
+      bottom: 52px; left: 50%;
+      transform: translateX(-50%);
+      pointer-events: auto;
+      cursor: pointer;
+      padding: 9px 18px;
+      background: rgba(10, 12, 16, 0.82);
+      border: 1px solid rgba(155, 216, 138, 0.45);
+      border-radius: 6px;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      color: rgba(242, 243, 238, 0.85);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    #resume.show { opacity: 1; pointer-events: auto; }
+    #resume b { color: var(--accent); }
+
+    /* --- overlays --- */
+    #fade {
+      position: fixed; inset: 0; z-index: 8;
+      background: #0e0f14;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+    #fade.on { opacity: 1; }
+
+    /* transient welcome card — never blocks the museum; fades on capture or timeout */
+    #intro {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, rgba(14, 15, 20, 0.72) 0%, rgba(14, 15, 20, 0.18) 55%, rgba(14, 15, 20, 0) 78%);
+      transition: opacity 0.6s ease;
+    }
+    #intro.hidden { opacity: 0; }
+    #intro h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 600;
+      font-size: clamp(28px, 5vw, 54px);
+      letter-spacing: 0.01em;
+      max-width: 14ch;
+      line-height: 1.1;
+      margin-bottom: 10px;
+    }
+    #intro .sub {
+      color: var(--accent);
+      font-size: 14px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    #intro .go {
+      margin-top: 26px;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      color: rgba(242, 243, 238, 0.75);
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+    #intro .go b { color: var(--ink); }
+    @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+    #intro .foot {
+      position: absolute; bottom: 58px;
+      font-size: 12px; color: rgba(242, 243, 238, 0.35);
+      pointer-events: auto;
+    }
+    #intro .foot a { color: rgba(155, 216, 138, 0.7); }
+
+    #err {
+      position: fixed; inset: 0; z-index: 20;
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 40px; text-align: center;
+      background: #0a0b0f; color: #ff9d6f;
+      font-size: 14px; line-height: 1.6;
+    }
+
+    /* --- focus mode --- */
+    body.focus-open #hud, body.focus-open #resume { display: none !important; }
+
+    #focus {
+      position: fixed; inset: 0; z-index: 14;
+      display: flex;
+      background: #0a0b0f;
+      opacity: 1;
+      transition: opacity 0.25s ease;
+    }
+    #focus.hidden { opacity: 0; pointer-events: none; }
+
+    .focus-left {
+      width: min(420px, 40vw);
+      height: 100%;
+      overflow-y: auto;
+      padding: 28px 26px 36px;
+      background: #12141b;
+      border-right: 1px solid rgba(155, 216, 138, 0.22);
+      box-sizing: border-box;
+    }
+    .focus-right {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(ellipse at 60% 45%, #1b1e28 0%, #0a0b0f 78%);
+    }
+    #focus-canvas { width: 100%; height: 100%; display: block; }
+    .focus-hint {
+      position: absolute; bottom: 16px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px; letter-spacing: 0.12em;
+      color: rgba(242, 243, 238, 0.4);
+      pointer-events: none;
+    }
+
+    .focus-close {
+      background: none; border: none; color: var(--accent);
+      font-family: inherit; font-size: 13px; letter-spacing: 0.06em;
+      cursor: pointer; padding: 0 0 18px; margin: 0;
+    }
+    .focus-tag {
+      color: var(--accent); font-size: 11px;
+      letter-spacing: 0.22em; text-transform: uppercase;
+    }
+    #focus-title {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 600; font-size: 30px; margin: 6px 0 12px;
+      line-height: 1.1;
+    }
+    #focus-blurb {
+      font-size: 13px; line-height: 1.6;
+      color: rgba(242, 243, 238, 0.72);
+      margin-bottom: 22px;
+    }
+
+    .focus-section-title {
+      font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: rgba(242, 243, 238, 0.42);
+      margin: 20px 0 10px; border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: 6px;
+    }
+    .ctrl { margin-bottom: 14px; }
+    .ctrl label {
+      display: flex; justify-content: space-between;
+      font-size: 12px; margin-bottom: 5px; font-weight: 500;
+      color: rgba(242,243,238,0.85);
+    }
+    .ctrl label .val { color: var(--accent); font-family: "Courier New", monospace; }
+    .ctrl input[type="range"] { width: 100%; accent-color: #6fbf59; }
+    .ctrl input[type="text"] {
+      width: 100%; box-sizing: border-box;
+      background: #0c0e13; border: 1px solid rgba(255,255,255,0.14);
+      color: var(--ink); font-family: "Courier New", monospace;
+      font-size: 12px; padding: 6px 8px; border-radius: 4px;
+    }
+    .ctrl .rule-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .ctrl .rule-row .sym {
+      color: var(--accent); font-family: "Courier New", monospace;
+      font-size: 13px; min-width: 22px; text-align: right;
+    }
+    .ctrl .rule-row .arrow { color: rgba(242,243,238,0.4); }
+    .ctrl .rule-row .sym-in {
+      width: 34px; flex: 0 0 auto; text-align: center;
+      color: var(--accent) !important;
+    }
+    .ctrl .rule-row .rep-in { flex: 1 1 auto; min-width: 0; }
+    .ctrl .rule-row .rule-del {
+      flex: 0 0 auto; background: none; border: none;
+      color: rgba(255, 130, 130, 0.75); cursor: pointer;
+      font-size: 17px; line-height: 1; padding: 0 2px;
+    }
+    .ctrl .rule-row .rule-del:hover { color: #ff8080; }
+    .rule-add {
+      background: none; border: 1px dashed rgba(155, 216, 138, 0.4);
+      color: var(--accent); font-family: inherit; font-size: 12px;
+      padding: 6px 12px; border-radius: 5px; cursor: pointer; margin-top: 4px;
+    }
+    .rule-add:hover { background: rgba(155, 216, 138, 0.1); }
+
+    .focus-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+    .focus-actions button {
+      flex: 1 1 auto;
+      background: rgba(155, 216, 138, 0.08);
+      border: 1px solid rgba(155, 216, 138, 0.4);
+      color: var(--ink); font-family: inherit; font-size: 12px;
+      letter-spacing: 0.04em; padding: 9px 10px; border-radius: 5px;
+      cursor: pointer; transition: background 0.15s ease;
+    }
+    .focus-actions button:hover { background: rgba(155, 216, 138, 0.2); }
+    #focus-toast {
+      margin-top: 12px; height: 16px;
+      font-size: 12px; color: var(--accent); opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    #focus-toast.show { opacity: 1; }
+
+    /* --- photo mode / tour --- */
+    body.photo #hud, body.photo #resume,
+    body.tour #hud, body.tour #resume { display: none !important; }
+    #photo-badge {
+      position: fixed; top: 22px; right: 26px; z-index: 6;
+      font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: rgba(242, 243, 238, 0.6);
+      border-right: 2px solid var(--accent); padding-right: 12px;
+      opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
+    }
+    #photo-badge.show { opacity: 1; }
+
+    /* --- directory / room map --- */
+    body.dir-open #hud, body.dir-open #resume { display: none !important; }
+    #directory {
+      position: fixed; inset: 0; z-index: 12;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(8, 9, 13, 0.86);
+      backdrop-filter: blur(3px);
+    }
+    #directory.hidden { display: none; }
+    .dir-inner { width: min(880px, 92vw); }
+    .dir-head {
+      font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: rgba(242, 243, 238, 0.6);
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      padding-bottom: 10px; margin-bottom: 20px;
+      display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .dir-head span { color: rgba(242,243,238,0.35); letter-spacing: 0.12em; }
+    .dir-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .dir-card {
+      text-align: left; cursor: pointer;
+      background: #14161d; color: var(--ink);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-left: 3px solid var(--c, #6fbf59);
+      border-radius: 6px; padding: 14px 16px;
+      font-family: inherit;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .dir-card:hover { background: #1c1f28; transform: translateY(-2px); }
+    .dir-card.here { outline: 1px solid var(--c, #6fbf59); background: #1c1f28; }
+    .dir-card .dir-name {
+      display: block; font-family: Georgia, serif; font-size: 17px; margin-bottom: 4px;
+    }
+    .dir-card .dir-sub {
+      display: block; font-size: 11px; letter-spacing: 0.06em;
+      color: rgba(242,243,238,0.5);
+    }
+    .dir-card .dir-count { color: var(--c, #6fbf59); }
+  </style>
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <div id="hud">
+    <div id="crosshair"></div>
+    <div id="location"><span id="loc-name">Atrium</span><small id="loc-sub"></small></div>
+    <div id="prompt"></div>
+    <div id="resume">mouse free — <b>click</b> recaptures · drag to look</div>
+    <div id="hint">W A S D move · drag looks · click captures · E act · F focus · M map · P photo · T tour</div>
+  </div>
+
+  <div id="photo-badge">Photo mode · P exit · Space / C rise-fall · Shift boost</div>
+
+  <div id="fade"></div>
+
+  <div id="intro">
+    <div class="sub">L-systems · phyllotaxis · fractal botany</div>
+    <h1>The Algorithmic Beauty of Plants</h1>
+    <div class="go"><b>W A S D</b> walks · <b>drag</b> looks · <b>click</b> captures the mouse</div>
+    <div class="foot">
+      built from <a href="https://algorithmicbotany.org/papers/abop/abop.pdf" target="_blank" rel="noreferrer">ABOP</a>
+      · prefer the old 2D pages? <a href="chapters.html">classic index</a>
+    </div>
+  </div>
+
+  <div id="err"></div>
+
+  <div id="directory" class="hidden">
+    <div class="dir-inner">
+      <div class="dir-head">Directory <span>press M or Esc to close</span></div>
+      <div class="dir-grid" id="dir-grid"></div>
+    </div>
+  </div>
+
+  <div id="focus" class="hidden">
+    <div class="focus-left">
+      <button class="focus-close" id="focus-close">← back to the museum</button>
+      <div class="focus-tag" id="focus-sub"></div>
+      <h2 id="focus-title"></h2>
+      <p id="focus-blurb"></p>
+      <div id="focus-controls"></div>
+      <div id="focus-grammar"></div>
+      <div class="focus-actions">
+        <button id="focus-random">Randomize</button>
+        <button id="focus-copy">Copy link</button>
+        <button id="focus-download">Download PNG</button>
+        <button id="focus-glb">GLB</button>
+        <button id="focus-stl">STL</button>
+        <button id="focus-reset">Reset</button>
+      </div>
+      <div id="focus-toast"></div>
+    </div>
+    <div class="focus-right">
+      <canvas id="focus-canvas"></canvas>
+      <div class="focus-hint">drag to rotate · scroll to zoom</div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+        "js-yaml": "https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/+esm"
+      }
+    }
+  </script>
+  <script type="module">
+    import "./museum/main.js";
+  </script>
+  <noscript>This experience requires JavaScript and WebGL.</noscript>
+</body>
+
+</html>
