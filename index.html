@@ -12,7 +12,8 @@
       --ink: #111;
       --ink-2: #4d7c0f; /* second ink: moss. structure + navigation only */
       --paper: #fdfdfd;
-      --font: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; /* face: mono */
+      --font: "Helvetica Neue", Helvetica, Arial, sans-serif; /* face: grotesk */
+      --mono: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; /* grammar strings */
       --size: 14px;
       --btn-shadow: #bbb;
     }
@@ -93,7 +94,7 @@
     .ctrl-head { display: flex; justify-content: space-between; margin-bottom: 2px; }
     .ctrl input[type="range"] { width: 100%; margin: 0; accent-color: var(--ink); }
     input[type="text"] {
-      font: inherit; width: 100%; min-width: 0;
+      font: inherit; font-family: var(--mono); width: 100%; min-width: 0;
       border: 1px solid var(--ink); background: var(--paper); color: var(--ink);
       padding: 2px 8px;
     }

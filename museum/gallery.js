@@ -29,6 +29,7 @@ const hallNo = (fam) => HALLS.indexOf(fam) + 1;
 const GROUND = "#111111";
 const FOV = 30;
 const PLATE_PX = 440;
+const SPIN = 0.3; // rad/s, 3D specimens only
 
 const navEl = document.getElementById("nav");
 const contentEl = document.getElementById("content");
@@ -100,7 +101,7 @@ function fit(obj, aspect, hint) {
   const dist = (r / Math.sin(Math.atan(Math.min(tv, th)))) * 0.8;
   if (hint) return { ...hint, dist };
   if (size.y < 0.15 * Math.max(size.x, size.z)) return { yaw: 0, pitch: 1.0, dist };
-  return { yaw: 0.6, pitch: 0.2, dist };
+  return { yaw: 0.6, pitch: 0.2, dist, spin: true };
 }
 
 function aim(camera, view) {
@@ -180,7 +181,7 @@ function runJob(job) {
     job.obj = null;
     return;
   }
-  if (isLive(job.obj)) live.push(job);
+  if (isLive(job.obj) || job.view.spin) live.push(job);
   else {
     dispose(job.obj);
     job.obj = null;
@@ -414,7 +415,7 @@ function benchRebuild(refit) {
   }
   b.obj = built;
   const view = fit(built, benchCamera.aspect, hintFor(b.fam, b.base));
-  if (refit) Object.assign(b.view, view);
+  if (refit) Object.assign(b.view, { spin: false }, view);
   benchScene.add(built);
   b.needs = true;
 }
@@ -454,7 +455,7 @@ function detailPage(fam, vi, restore) {
   if (!base) return [heading(hallNo(fam), fam.title), h("p", null, `Exhibit not found: ${fam.id}/${vi}`)];
 
   const canvas = h("canvas", { class: "bench-canvas" });
-  const statusEl = h("p", { class: "status" }, "Drag rotates. Scroll zooms.");
+  const statusEl = h("p", { class: "status" }, "Drag rotates (stops the turntable). Scroll zooms.");
   const paramsEl = h("div");
   const grammarEl = h("div");
   const grammar = !!fam.grammar && !Array.isArray(base.rules);
@@ -614,6 +615,7 @@ function detailPage(fam, vi, restore) {
   let ly = 0;
   canvas.addEventListener("pointerdown", (e) => {
     dragging = true;
+    b.view.spin = false;
     lx = e.clientX;
     ly = e.clientY;
     canvas.setPointerCapture(e.pointerId);
@@ -781,6 +783,7 @@ function loop(t) {
     for (const job of live) {
       if (job.obj.userData.tick) job.obj.userData.tick(dt, { renderer: plateRenderer });
       if (job.obj.userData.growth) tickGrowth(job.obj, clock);
+      if (job.view.spin) job.view.yaw += dt * SPIN;
       drawPlate(job);
     }
   }
@@ -793,7 +796,8 @@ function loop(t) {
     const obj = bench.obj;
     if (obj && obj.userData.tick) obj.userData.tick(dt, { renderer: benchRenderer });
     if (obj && obj.userData.growth) tickGrowth(obj, clock);
-    if (obj && (bench.needs || isLive(obj))) {
+    if (obj && bench.view.spin) bench.view.yaw += dt * SPIN;
+    if (obj && (bench.needs || bench.view.spin || isLive(obj))) {
       bench.needs = false;
       aim(benchCamera, bench.view);
       benchRenderer.render(benchScene, benchCamera);

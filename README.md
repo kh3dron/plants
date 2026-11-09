@@ -9,11 +9,11 @@ Live: [kh3dron.github.io/plants](https://kh3dron.github.io/plants/)
 `index.html` + `museum/gallery.js`: a flat, paged specimen catalog. three.js 0.160 via CDN import map, ES modules, no build step.
 
 - One page per hall, routed by URL hash (`#fractals`). Left nav lists all halls; the last item is the info page (`#info`).
-- Each exhibit is a plate rendered from its specimen. Live simulations (particle life, reaction-diffusion, Lenia, growth stages) keep running on the plate.
+- Each exhibit is a plate rendered from its specimen. Live simulations (particle life, reaction-diffusion, Lenia, growth stages) keep running on the plate. 3D specimens rotate on a turntable, on the plate and on the detail page until dragged; flat works stay front-on.
 - A plate links to the exhibit detail page (`#fractals/1`): orbit view, parameter sliders, grammar editor, PNG/GLB/STL export (STL is hand-written binary; point clouds are refused). `Copy link` encodes the edited state as `#exhibit=<json>`.
 - Evolution Greenhouse, Hall of Generations, and Seed Vault are button-driven pages. State persists in `localStorage`.
 - Hall order and grouping: `GROUPS` in `museum/gallery.js`. Specimen data: `museum/specimens.js`.
-- Design: industrial (mono face, moss second ink, white stock); specimen plates render on an ink ground.
+- Design: industrial (grotesk face, mono for grammar strings, moss second ink, white stock); specimen plates render on an ink ground.
 
 ## 2 Walkable 3D museum (parked)
 
